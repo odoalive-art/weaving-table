@@ -1,0 +1,2002 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>编织台</title>
+<style>
+  :root{
+    --paper:#E8E4DB;
+    --paper-grid:#DEDACF;
+    --card:#FBFAF7;
+    --card-edge:#E4DFD4;
+    --ink:#2B2A26;
+    --ink-soft:#756F63;
+    --ink-faint:#A8A296;
+    --line:#D8D2C6;
+    --honey:#D99A2B;
+    --honey-bg:#F6E7B8;
+    --honey-ink:#8A5E10;
+    --slate:#738FA3;
+    --sage:#6D8B73;
+    --danger:#A5513A;
+    --hull-sage:rgba(126,150,128,.16);
+    --hull-lilac:rgba(150,134,168,.16);
+    --hull-sand:rgba(190,160,110,.16);
+    --hull-mist:rgba(120,150,168,.16);
+    --hull-edge:rgba(120,114,100,.22);
+    --shadow:0 1px 2px rgba(40,36,28,.06),0 8px 24px rgba(40,36,28,.10);
+    --shadow-lift:0 6px 12px rgba(40,36,28,.10),0 18px 48px rgba(40,36,28,.18);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB",system-ui,sans-serif;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Songti SC","Source Han Serif SC",Georgia,serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#1C1A17;--paper-grid:#242118;--card:#2A2723;--card-edge:#3A352E;
+      --ink:#ECE8E0;--ink-soft:#A39C8F;--ink-faint:#6E675C;--line:#3A352E;
+      --honey:#E0A93F;--honey-bg:#4A3B1A;--honey-ink:#E9C982;
+      --slate:#8AA0B2;--sage:#88A68D;--danger:#D38974;
+      --hull-sage:rgba(126,150,128,.20);--hull-lilac:rgba(150,134,168,.20);
+      --hull-sand:rgba(190,160,110,.18);--hull-mist:rgba(120,150,168,.20);
+      --hull-edge:rgba(200,194,180,.16);
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.4);
+      --shadow-lift:0 6px 12px rgba(0,0,0,.4),0 18px 48px rgba(0,0,0,.55);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:var(--sans);color:var(--ink);background:var(--paper);
+    overflow:hidden;-webkit-font-smoothing:antialiased;
+  }
+  button,textarea,input{font:inherit;color:inherit}
+  button{cursor:pointer}
+  .app{display:flex;height:100vh;width:100vw}
+
+  .bar{
+    position:absolute;top:0;left:0;right:0;min-height:56px;z-index:40;
+    display:flex;align-items:center;gap:10px;padding:10px 16px;
+    background:linear-gradient(var(--paper) 10%,rgba(232,228,219,0));
+    pointer-events:none;
+  }
+  .bar > *{pointer-events:auto}
+  .brand{font-family:var(--serif);font-size:18px;letter-spacing:.02em;font-weight:600;margin-right:2px;white-space:nowrap}
+  .brand .dot{color:var(--honey)}
+  .hint{font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+  .spacer{flex:1}
+  .save-status{font-size:12px;color:var(--ink-soft);white-space:nowrap;margin-right:2px}
+  button.act{
+    min-height:34px;font-size:13px;color:var(--ink);
+    background:var(--card);border:1px solid var(--card-edge);border-radius:9px;
+    padding:7px 12px;box-shadow:var(--shadow);
+    transition:transform .12s ease,box-shadow .12s ease,background .12s ease;
+    white-space:nowrap;
+  }
+  button.act:hover{transform:translateY(-1px);box-shadow:var(--shadow-lift)}
+  button.act:active{transform:translateY(0)}
+  button.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  button.ghost{box-shadow:none;background:color-mix(in srgb,var(--card) 62%,transparent)}
+  button.danger{color:var(--danger)}
+
+  .table-wrap{flex:1;position:relative;overflow:hidden}
+  .table{
+    position:absolute;inset:0;
+    background-image:radial-gradient(var(--paper-grid) 1px,transparent 1px);
+    background-size:26px 26px;background-position:13px 13px;
+    touch-action:none;cursor:default;
+  }
+  .table.space-ready{cursor:grab}
+  .table.panning{cursor:grabbing}
+  .table.space-ready .card,.table.space-ready .hull{cursor:grab}
+  .table.panning .card,.table.panning .hull{cursor:grabbing}
+  .canvas{
+    position:absolute;inset:0;transform-origin:0 0;will-change:transform;
+    pointer-events:none;
+  }
+  .canvas .card,.canvas .hull{pointer-events:auto}
+  .legend{
+    position:absolute;left:18px;bottom:16px;z-index:30;
+    display:flex;gap:16px;font-size:11.5px;color:var(--ink-soft);
+    background:color-mix(in srgb,var(--card) 80%,transparent);
+    padding:7px 12px;border-radius:10px;border:1px solid var(--card-edge);
+    backdrop-filter:blur(6px);
+  }
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+  .d-loose{background:var(--ink-faint)} .d-clustered{background:var(--slate)} .d-harvested{background:var(--honey)}
+
+  .hull{
+    position:absolute;border-radius:28px;z-index:1;
+    border:1px solid var(--hull-edge);filter:blur(.3px);
+    transition:all .28s cubic-bezier(.22,1,.36,1);pointer-events:auto;cursor:grab;
+  }
+  .hull.dragging{cursor:grabbing;transition:none;z-index:3}
+  .hull .tag{
+    position:absolute;top:-14px;left:16px;pointer-events:auto;
+    font-size:12px;color:var(--ink-soft);background:var(--card);
+    border:1px solid var(--card-edge);border-radius:7px;padding:2px 9px;
+    box-shadow:var(--shadow);outline:none;min-width:24px;max-width:220px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .hull .tag:focus{color:var(--ink);border-color:var(--slate);max-width:320px}
+  .hull .count{position:absolute;top:-11px;right:14px;font-size:10.5px;color:var(--ink-faint)}
+
+  .card{
+    position:absolute;width:214px;min-width:150px;min-height:96px;z-index:10;
+    background:var(--card);border:1px solid var(--card-edge);border-radius:14px;
+    padding:15px 15px 12px;box-shadow:var(--shadow);cursor:grab;
+    transition:box-shadow .15s ease,transform .15s cubic-bezier(.22,1,.36,1),opacity .15s ease;
+    will-change:transform;
+  }
+  .card:hover{box-shadow:var(--shadow-lift)}
+  .card.dragging{cursor:grabbing;box-shadow:var(--shadow-lift);transition:none;z-index:50;transform:rotate(-1.2deg)}
+  .card.editing{cursor:text;z-index:56}
+  .card.resizing{transition:none;z-index:55}
+  .card.selected{
+    border-color:color-mix(in srgb,var(--honey) 72%,var(--ink));
+    box-shadow:0 0 0 2px color-mix(in srgb,var(--honey) 45%,transparent),var(--shadow-lift);
+  }
+  .card .txt{font-size:15px;line-height:1.55;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+  .card .txt:empty::before{content:"写点什么...";color:var(--ink-faint)}
+  .card .txt[contenteditable="true"]{outline:none;cursor:text}
+  .card.sized{display:flex;flex-direction:column}
+  .card.sized .txt{flex:1 0 auto;min-height:0;overflow:visible;padding-right:2px}
+  .card .meta{display:flex;align-items:center;gap:7px;margin-top:12px}
+  .card .status{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);transition:background .2s}
+  .card.clustered .status{background:var(--slate)}
+  .card.harvested .status{background:var(--honey)}
+  .card .stamp{font-size:10.5px;color:var(--ink-faint);margin-right:auto}
+  .card .mini{
+    border:0;background:transparent;color:var(--ink-soft);font-size:11px;
+    padding:2px 3px;border-radius:5px;line-height:1;
+  }
+  .card .mini:hover{background:color-mix(in srgb,var(--paper) 75%,transparent);color:var(--ink)}
+  .card.harvested{opacity:.64}
+  .card.harvested .txt{text-decoration:line-through;text-decoration-color:var(--ink-faint)}
+  .resize-handle{position:absolute;display:none;z-index:4;pointer-events:auto}
+  .card.resizable .resize-handle{display:block}
+  .resize-handle.rh-n{top:-5px;left:9px;right:9px;height:10px;cursor:ns-resize}
+  .resize-handle.rh-s{bottom:-5px;left:9px;right:9px;height:10px;cursor:ns-resize}
+  .resize-handle.rh-w{left:-5px;top:9px;bottom:9px;width:10px;cursor:ew-resize}
+  .resize-handle.rh-e{right:-5px;top:9px;bottom:9px;width:10px;cursor:ew-resize}
+  .resize-handle.rh-corner{width:16px;height:16px;z-index:5}
+  .resize-handle.rh-nw{top:-8px;left:-8px;cursor:nwse-resize}
+  .resize-handle.rh-ne{top:-8px;right:-8px;cursor:nesw-resize}
+  .resize-handle.rh-sw{bottom:-8px;left:-8px;cursor:nesw-resize}
+  .resize-handle.rh-se{bottom:-8px;right:-8px;cursor:nwse-resize}
+  .resize-handle.rh-corner::after{
+    content:"";position:absolute;inset:4px;border-radius:50%;
+    background:var(--card);border:1px solid color-mix(in srgb,var(--honey) 72%,var(--ink));
+    box-shadow:var(--shadow);
+  }
+
+  .panel{
+    width:0;flex:0 0 auto;background:var(--card);border-left:1px solid var(--line);
+    overflow:hidden;transition:width .34s cubic-bezier(.22,1,.36,1);
+    display:flex;flex-direction:column;z-index:60;
+  }
+  .panel.open{width:min(46vw,540px)}
+  .panel-head{padding:18px 22px 12px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px}
+  .panel-head h2{font-family:var(--serif);font-size:19px;font-weight:600}
+  .panel-head .sub{font-size:12px;color:var(--ink-soft)}
+  .panel-head .close{margin-left:auto;background:none;border:none;color:var(--ink-soft);font-size:22px;line-height:1;padding:2px 4px}
+  .panel-body{padding:8px 22px 40px;overflow-y:auto;flex:1}
+  .sec{padding:18px 0;border-bottom:1px solid var(--line)}
+  .sec:last-child{border-bottom:none}
+  .sec h3{font-family:var(--serif);font-size:16.5px;margin-bottom:9px;font-weight:600}
+  .sec.loose h3{color:var(--ink-soft);font-weight:500}
+  .skel{list-style:none;display:flex;flex-direction:column;gap:5px;margin-bottom:11px}
+  .skel li{font-size:13px;color:var(--ink-soft);padding-left:15px;position:relative;line-height:1.5;overflow-wrap:anywhere}
+  .skel li::before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%;background:var(--slate)}
+  .sec.loose .skel li::before{background:var(--ink-faint)}
+  .draft{
+    width:100%;border:1px dashed var(--card-edge);border-radius:10px;background:transparent;
+    font-family:var(--serif);font-size:14.5px;line-height:1.7;color:var(--ink);
+    padding:11px 13px;resize:vertical;min-height:76px;outline:none;
+    transition:border-color .18s,background .18s;
+  }
+  .draft:focus{border-style:solid;border-color:var(--slate);background:color-mix(in srgb,var(--card) 60%,var(--paper))}
+  .draft::placeholder{color:var(--ink-faint);font-style:italic}
+  .empty{padding:40px 8px;color:var(--ink-soft);font-size:14px;font-family:var(--serif);line-height:1.7}
+
+  .composer{
+    position:absolute;z-index:90;left:50%;top:70px;width:min(520px,calc(100vw - 28px));
+    transform:translateX(-50%) translateY(-10px);opacity:0;pointer-events:none;
+    background:var(--card);border:1px solid var(--card-edge);border-radius:14px;
+    box-shadow:var(--shadow-lift);padding:14px;transition:opacity .16s ease,transform .16s ease;
+  }
+  .composer.open{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  .composer textarea{
+    width:100%;min-height:118px;resize:vertical;border:1px solid var(--line);border-radius:10px;
+    background:color-mix(in srgb,var(--card) 72%,var(--paper));padding:11px 12px;
+    font-family:var(--serif);font-size:15px;line-height:1.55;outline:none;
+  }
+  .composer textarea:focus{border-color:var(--slate)}
+  .composer-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  .toast{
+    position:absolute;right:18px;bottom:16px;z-index:95;max-width:min(420px,calc(100vw - 36px));
+    background:var(--ink);color:var(--paper);border-radius:10px;padding:9px 12px;
+    font-size:12.5px;box-shadow:var(--shadow-lift);opacity:0;transform:translateY(8px);
+    transition:opacity .18s ease,transform .18s ease;pointer-events:none;
+  }
+  .toast.show{opacity:1;transform:translateY(0)}
+  .selection-box{
+    position:absolute;z-index:80;border:1px solid var(--slate);
+    background:color-mix(in srgb,var(--slate) 18%,transparent);
+    border-radius:8px;display:none;pointer-events:none;
+  }
+  .selection-box.active{display:block}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media (max-width:900px){
+    .bar{align-items:flex-start;gap:8px;flex-wrap:wrap;padding-right:10px}
+    .hint{display:none}
+    .save-status{order:8;width:100%;font-size:11.5px}
+    button.act{padding:7px 10px}
+  }
+  @media (max-width:760px){
+    .panel.open{width:100vw}
+    .legend{left:10px;bottom:10px;gap:9px}
+    .card{width:204px}
+  }
+
+  /* Startup Splash Overlay */
+  .splash-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--paper) 78%, transparent);
+    backdrop-filter: blur(16px);
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    visibility: visible;
+    opacity: 1;
+  }
+  .splash-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .splash-card {
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    border-radius: 20px;
+    padding: 40px 32px;
+    width: min(480px, 90vw);
+    box-shadow: var(--shadow-lift);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    animation: splash-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes splash-pop {
+    from { transform: scale(0.93) translateY(12px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .splash-logo {
+    font-family: var(--serif);
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--ink);
+  }
+  .splash-logo .dot {
+    color: var(--honey);
+  }
+  .splash-desc {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    margin-top: -6px;
+  }
+  .splash-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .splash-btn {
+    width: 100%;
+    min-height: 44px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+  }
+  .splash-btn.primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .splash-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .splash-btn.secondary {
+    background: var(--card);
+    color: var(--ink);
+    border-color: var(--card-edge);
+    box-shadow: var(--shadow);
+  }
+  .splash-btn.secondary:hover {
+    background: color-mix(in srgb, var(--paper) 20%, var(--card));
+    transform: translateY(-1px);
+  }
+  .splash-btn.ghost {
+    background: transparent;
+    color: var(--ink-soft);
+  }
+  .splash-btn.ghost:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--paper) 40%, transparent);
+  }
+</style>
+</head>
+<body>
+
+<div class="splash-overlay" id="splashOverlay">
+  <div class="splash-card">
+    <div class="splash-logo">编织台<span class="dot">.</span></div>
+    <div class="splash-desc">空间卡片式写作与思考工具。卡片在画布上自由记录与整理，拖动聚类，一键编织成文。</div>
+    <div class="splash-actions" id="splashActions">
+      <!-- Buttons will be injected here by JS depending on whether there's a remembered file -->
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <div class="table-wrap">
+    <div class="bar">
+      <span class="brand">编织台<span class="dot">.</span></span>
+      <button class="act ghost" id="openFile" style="padding: 5px 10px; font-size: 12.5px; min-height: 30px;">打开文件</button>
+      <span class="save-status" id="saveStatus" style="margin-left: 4px;">未关联本地 Markdown 文件</span>
+      <span class="spacer"></span>
+      <button class="act ghost" id="addCard">+ 新卡片</button>
+      <button class="act ghost" id="saveFile">保存 (Ctrl+S)</button>
+      <button class="act ghost" id="downloadFile">导出 MD</button>
+      <button class="act primary" id="weave">编织成文</button>
+    </div>
+
+    <div class="table" id="table" style="background-position: 37.5352px 32.5391px;">
+      <div class="canvas" id="canvas">
+        <!-- hulls + cards injected here -->
+      </div>
+    </div>
+
+    <div class="composer" id="composer" aria-hidden="true">
+      <textarea id="composerText" placeholder="写下一张卡片..."></textarea>
+      <div class="composer-actions">
+        <button class="act ghost" id="cancelCompose">取消</button>
+        <button class="act primary" id="commitCompose">放到桌上</button>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i class="d-loose"></i>散落</span>
+      <span><i class="d-clustered"></i>已聚类</span>
+      <span><i class="d-harvested"></i>已收割</span>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <aside class="panel" id="panel">
+    <div class="panel-head">
+      <h2>编织成文</h2>
+      <span class="sub" id="subhead"></span>
+      <button class="close" id="close" aria-label="关闭">×</button>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+  </aside>
+</div>
+
+<script type="application/json" id="weaving-data">
+{
+  "version": 1,
+  "idSeq": 15,
+  "updatedAt": "2026-06-26T01:44:47.311Z",
+  "view": {
+    "x": 207,
+    "y": 176
+  },
+  "cards": [
+    {
+      "id": 10,
+      "text": "在考虑怎么强化已经分了组的漫画，考虑做成书架的样式：\n1. 分好组的：放在书架的架子上。\n2. 没有分组的：正常散落着。",
+      "x": 123,
+      "y": 72,
+      "createdAt": 1782398848946
+    },
+    {
+      "id": 11,
+      "text": "编织台的这个概念，我感觉其实还是蛮有意思的。\n\n我有相关的一些想法，都可以先一股脑地输出上来。我不用考虑它们有太多的关联性，或者应该怎么去排布。有想法先记录之后再处理，并且它能够很方便地去做一个初步的归类。",
+      "x": 1186,
+      "y": 92,
+      "createdAt": 1782398975944
+    },
+    {
+      "id": 12,
+      "text": "漫画库还有一个加载性能的问题。我现在一个库里大概有 20 本漫画，感觉点击进去时，初次加载会花一点时间。\n\n我在考虑，这个东西不能做成懒加载吗？还是说有没有一个持久化的缓存？这个我目前还不清楚。",
+      "x": 350,
+      "y": 67,
+      "createdAt": 1782399024493
+    },
+    {
+      "id": 13,
+      "text": "我感觉漫画库好像有点磨得太久了，希望尽快把核心功能都做好，并且做成一个可以对外发布的网页。\n\n这个网页其实就相当于我个人的作品集。我并没有打算把它做成非常商业的样子，但希望能在上面更新自己的作品，类似一个设计上的博客。同时，我也可以在同一个网页上，记录和分享一些自己学到的东西。",
+      "x": 955,
+      "y": 91,
+      "createdAt": 1782399608103
+    },
+    {
+      "id": 14,
+      "text": "好的好的",
+      "x": 205,
+      "y": 316,
+      "createdAt": 1782400836866
+    },
+    {
+      "id": 15,
+      "text": "需要一个 agent 每天帮我抓取值得看的信息，比如 AI、UI 设计、值得做的 APP",
+      "x": 138,
+      "y": 572,
+      "w": 331,
+      "h": 108,
+      "createdAt": 1782438201411
+    }
+  ],
+  "labels": {
+    "10-12": "漫画库",
+    "10-12-14": "漫画库"
+  },
+  "drafts": {}
+}
+</script>
+
+<script>
+(function(){
+  const GROUP_GAP = 96;
+  const CARD_W = 214;
+  const CARD_H = 118;
+  const SCALE_MIN = 0.4;
+  const SCALE_MAX = 2.5;
+  const MIN_CARD_W = 150;
+  const MIN_CARD_H = 96;
+  const RESIZE_DIRS = ['n','s','e','w','ne','nw','se','sw'];
+  const RESIZE_VEC = {
+    n:[0,-1], s:[0,1], e:[1,0], w:[-1,0],
+    ne:[1,-1], nw:[-1,-1], se:[1,1], sw:[-1,1]
+  };
+  const table = document.getElementById('table');
+  const canvas = document.getElementById('canvas');
+  const panel = document.getElementById('panel');
+  const panelBody = document.getElementById('panelBody');
+  const subhead = document.getElementById('subhead');
+  const saveStatus = document.getElementById('saveStatus');
+  const composer = document.getElementById('composer');
+  const composerText = document.getElementById('composerText');
+  const toast = document.getElementById('toast');
+  const selectionBox = document.createElement('div');
+  selectionBox.className = 'selection-box';
+  table.appendChild(selectionBox);
+
+  const extra = [
+    '删掉一句，比写出一句更难。',
+    '夜里想通的事，白天总要重新相信一遍。',
+    '工具应该消失在书写里。',
+    '先收集，再判断——别在捕获时就审查自己。'
+  ];
+
+  let state = readEmbeddedState();
+  let cards = state.cards;
+  let view = state.view;
+  let selectedIds = new Set();
+  let activeEditId = null;
+  let dirty = false;
+  let fileHandle = null;
+  let fileHandleReady = false;
+  let recomputeQueued = false;
+  let toastTimer = null;
+  let spaceDown = false;
+  let gesturing = false;
+  let currentClusters = [];
+  const activePointers = new Map();
+
+  function readEmbeddedState(){
+    const raw = document.getElementById('weaving-data').textContent.trim();
+    try{
+      const parsed = JSON.parse(raw);
+      parsed.cards = Array.isArray(parsed.cards) ? parsed.cards : [];
+      parsed.cards.forEach(c=>{
+        if(c.w != null) c.w = Math.max(150, Number(c.w) || CARD_W);
+        if(c.h != null) c.h = Math.max(96, Number(c.h) || CARD_H);
+      });
+      parsed.labels = parsed.labels || {};
+      parsed.drafts = parsed.drafts || {};
+      parsed.view = parsed.view || {x:0,y:0};
+      parsed.view.x = Number(parsed.view.x) || 0;
+      parsed.view.y = Number(parsed.view.y) || 0;
+      parsed.view.scale = clamp(Number(parsed.view.scale) || 1, SCALE_MIN, SCALE_MAX);
+      parsed.idSeq = parsed.idSeq || parsed.cards.reduce((m,c)=>Math.max(m,c.id||0),0);
+      return parsed;
+    }catch(err){
+      alert('数据读取失败：HTML 里的 weaving-data 不是有效 JSON。');
+      return {version:1,idSeq:0,cards:[],labels:{},drafts:{}};
+    }
+  }
+
+  function serializeState(){
+    return {
+      version: 1,
+      idSeq: state.idSeq,
+      updatedAt: new Date().toISOString(),
+      view: {x:Math.round(view.x), y:Math.round(view.y), scale:Math.round(view.scale*100)/100},
+      cards: cards.map(c=>({
+        id:c.id,
+        text:c.text,
+        x:Math.round(c.x),
+        y:Math.round(c.y),
+        ...(c.w ? {w:Math.round(c.w)} : {}),
+        ...(c.h ? {h:Math.round(c.h)} : {}),
+        createdAt:c.createdAt || Date.now()
+      })),
+      labels: state.labels,
+      drafts: state.drafts
+    };
+  }
+
+  function markDirty(message){
+    dirty = true;
+    saveStatus.textContent = message || '有未保存改动';
+  }
+
+  function showToast(message){
+    clearTimeout(toastTimer);
+    toast.textContent = message;
+    toast.classList.add('show');
+    toastTimer = setTimeout(()=>toast.classList.remove('show'), 2600);
+  }
+
+  function rand(a,b){
+    if(b <= a) return a;
+    return a + Math.random() * (b - a);
+  }
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function topLimit(){
+    const bar = document.querySelector('.bar');
+    return Math.max(62, Math.ceil(bar.getBoundingClientRect().height) + 10);
+  }
+
+  function screenX(c){ return c.x * view.scale + view.x; }
+  function screenY(c){ return c.y * view.scale + view.y; }
+  function screenToWorld(sx, sy){
+    return {x:(sx - view.x) / view.scale, y:(sy - view.y) / view.scale};
+  }
+  function cardWidth(c){ return c.el ? c.el.offsetWidth : CARD_W; }
+  function cardHeight(c){ return c.el ? c.el.offsetHeight : CARD_H; }
+
+  function applyView(){
+    canvas.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.scale + ')';
+    const cell = 26 * view.scale;
+    const half = cell / 2;
+    const bx = (((view.x + half) % cell) + cell) % cell;
+    const by = (((view.y + half) % cell) + cell) % cell;
+    table.style.backgroundSize = cell + 'px ' + cell + 'px';
+    table.style.backgroundPosition = bx + 'px ' + by + 'px';
+  }
+
+  function paintPositions(updateHulls){
+    if(updateHulls === undefined) updateHulls = true;
+    applyView();
+    cards.forEach(c=>{
+      if(!c.el) return;
+      c.el.style.left = c.x + 'px';
+      c.el.style.top = c.y + 'px';
+    });
+    if(updateHulls) paintHulls(currentClusters);
+  }
+
+  function clampCard(c){
+    c.x = Number(c.x) || 0;
+    c.y = Number(c.y) || 0;
+    if(c.createdAt == null) c.createdAt = Date.now();
+  }
+
+  function clampToVisible(screenXValue, screenYValue){
+    const minY = topLimit();
+    return {
+      x: Math.max(8, Math.min(Math.max(8, table.clientWidth - CARD_W - 8), screenXValue)),
+      y: Math.max(minY, Math.min(Math.max(minY, table.clientHeight - CARD_H - 8), screenYValue))
+    };
+  }
+
+  function stampText(c){
+    const age = Date.now() - (c.createdAt || Date.now());
+    if(age < 60000) return '刚刚';
+    if(age < 3600000) return Math.floor(age / 60000) + ' 分钟前';
+    if(age < 86400000) return Math.floor(age / 3600000) + ' 小时前';
+    return Math.floor(age / 86400000) + ' 天前';
+  }
+
+  function renderCards(){
+    canvas.querySelectorAll('.card,.hull').forEach(el=>el.remove());
+    applyView();
+    cards.forEach(c=>{
+      clampCard(c);
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.dataset.id = c.id;
+      el.style.left = c.x + 'px';
+      el.style.top = c.y + 'px';
+      if(c.w) el.style.width = c.w + 'px';
+      if(c.h){
+        el.style.minHeight = c.h + 'px';
+        el.classList.add('sized');
+      }
+
+      const txt = document.createElement('div');
+      txt.className = 'txt';
+      txt.textContent = c.text;
+      el.appendChild(txt);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = '<span class="status"></span><span class="stamp"></span>';
+      meta.querySelector('.stamp').textContent = stampText(c);
+
+      const edit = document.createElement('button');
+      edit.className = 'mini';
+      edit.type = 'button';
+      edit.textContent = '编辑';
+      edit.addEventListener('click', ev=>{
+        ev.stopPropagation();
+        startCardEdit(c);
+      });
+      const del = document.createElement('button');
+      del.className = 'mini danger';
+      del.type = 'button';
+      del.textContent = '删除';
+      del.addEventListener('click', ev=>{
+        ev.stopPropagation();
+        removeCard(c.id);
+      });
+      meta.appendChild(edit);
+      meta.appendChild(del);
+      el.appendChild(meta);
+
+      RESIZE_DIRS.forEach(dir=>{
+        const handle = document.createElement('div');
+        handle.className = 'resize-handle rh-' + dir + (dir.length === 2 ? ' rh-corner' : '');
+        handle.dataset.dir = dir;
+        handle.title = '拖动调整卡片大小';
+        el.appendChild(handle);
+      });
+
+      canvas.appendChild(el);
+      c.el = el;
+      el.addEventListener('dblclick', ev=>{
+        if(ev.target.closest('button,.resize-handle')) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        selectSingle(c.id);
+        startCardEdit(c);
+      });
+      attachDrag(c);
+      attachResize(c, el);
+    });
+    recompute();
+  }
+
+  function openComposer(editId){
+    activeEditId = editId || null;
+    const card = activeEditId ? cards.find(c=>c.id === activeEditId) : null;
+    composerText.value = card ? card.text : '';
+    document.getElementById('commitCompose').textContent = card ? '更新卡片' : '放到桌上';
+    composer.classList.add('open');
+    composer.setAttribute('aria-hidden','false');
+    requestAnimationFrame(()=>composerText.focus());
+  }
+
+  function closeComposer(){
+    composer.classList.remove('open');
+    composer.setAttribute('aria-hidden','true');
+    composerText.value = '';
+    activeEditId = null;
+  }
+
+  function commitComposer(){
+    const text = composerText.value.trim();
+    if(!text){
+      closeComposer();
+      return;
+    }
+    if(activeEditId){
+      const c = cards.find(card=>card.id === activeEditId);
+      if(c){
+        c.text = text;
+        c.el.querySelector('.txt').textContent = text;
+        markDirty('卡片已更新，尚未保存');
+      }
+    }else{
+      const W = table.clientWidth;
+      const H = table.clientHeight;
+      const sx = rand(70, Math.max(80, W - CARD_W - 40));
+      const sy = rand(topLimit() + 12, Math.max(topLimit() + 28, H - CARD_H - 40));
+      const world = screenToWorld(sx, sy);
+      const c = {
+        id: ++state.idSeq,
+        text,
+        x: world.x,
+        y: world.y,
+        createdAt: Date.now(),
+        cluster: null,
+        status: 'loose'
+      };
+      cards.push(c);
+      markDirty('新卡片已加入，尚未保存');
+      renderCards();
+    }
+    closeComposer();
+    recompute();
+  }
+
+  function createCardAt(screenLeft, screenTop, text){
+    const world = screenToWorld(screenLeft, screenTop);
+    const c = {
+      id: ++state.idSeq,
+      text: text || '',
+      x: world.x,
+      y: world.y,
+      createdAt: Date.now(),
+      cluster: null,
+      status: 'loose',
+      isNewEditing: !text
+    };
+    cards.push(c);
+    state.cards = cards;
+    renderCards();
+    const fresh = cards.find(card=>card.id === c.id);
+    selectSingle(c.id);
+    requestAnimationFrame(()=>startCardEdit(fresh, true));
+    markDirty('新卡片已加入，尚未保存');
+    return c;
+  }
+
+  function normalizeEditedText(el){
+    return el.innerText.replace(/\u00a0/g,' ').replace(/\n$/,'');
+  }
+
+  function placeCaretAtEnd(el){
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function startCardEdit(c, fromNewCard){
+    if(!c || !c.el) return;
+    if(c.el.classList.contains('editing')) return;
+    const txt = c.el.querySelector('.txt');
+    const original = c.text;
+    c.el.classList.add('editing');
+    txt.contentEditable = 'true';
+    txt.dataset.original = original;
+    txt.focus();
+    placeCaretAtEnd(txt);
+
+    function finish(commit){
+      txt.removeEventListener('blur', onBlur);
+      txt.removeEventListener('keydown', onKeydown);
+      txt.removeEventListener('input', onInput);
+      txt.contentEditable = 'false';
+      c.el.classList.remove('editing');
+      const next = commit ? normalizeEditedText(txt).trim() : original;
+      if(!next && (fromNewCard || c.isNewEditing)){
+        deleteCards([c.id], true);
+        return;
+      }
+      c.text = next;
+      txt.textContent = next;
+      c.isNewEditing = false;
+      markDirty('卡片已更新，尚未保存');
+      recompute();
+      paintSelection();
+    }
+
+    function onBlur(){ finish(true); }
+    function onKeydown(e){
+      if(e.key === 'Escape'){
+        e.preventDefault();
+        finish(false);
+      }
+      if((e.metaKey || e.ctrlKey) && e.key === 'Enter'){
+        e.preventDefault();
+        txt.blur();
+      }
+    }
+    function onInput(){
+      c.text = normalizeEditedText(txt);
+      scheduleRecompute();
+    }
+
+    txt.addEventListener('blur', onBlur);
+    txt.addEventListener('keydown', onKeydown);
+    txt.addEventListener('input', onInput);
+  }
+
+  function removeCard(id){
+    const card = cards.find(c=>c.id === id);
+    if(!card) return;
+    if(!confirm('删除这张卡片？')) return;
+    deleteCards([id], false);
+  }
+
+  function deleteCards(ids, silent){
+    const remove = new Set(ids);
+    if(remove.size === 0) return;
+    if(!silent && remove.size > 1 && !confirm('删除选中的 ' + remove.size + ' 张卡片？')) return;
+    cards = cards.filter(c=>!remove.has(c.id));
+    state.cards = cards;
+    selectedIds = new Set([...selectedIds].filter(id=>!remove.has(id)));
+    table.querySelectorAll('.card').forEach(el=>{
+      if(remove.has(Number(el.dataset.id))) el.remove();
+    });
+    cleanupOrphanDraftsAndLabels();
+    markDirty(remove.size + ' 张卡片已删除，尚未保存');
+    recompute();
+    if(panel.classList.contains('open')) weave();
+  }
+
+  function clearSelection(){
+    selectedIds.clear();
+    paintSelection();
+  }
+
+  function selectSingle(id){
+    selectedIds = new Set([id]);
+    paintSelection();
+  }
+
+  function selectMany(ids){
+    selectedIds = new Set(ids);
+    paintSelection();
+  }
+
+  function selectCluster(key){
+    selectMany(cards.filter(c=>c.cluster === key).map(c=>c.id));
+  }
+
+  function paintSelection(){
+    cards.forEach(c=>{
+      if(!c.el) return;
+      const selected = selectedIds.has(c.id);
+      c.el.classList.toggle('selected', selected);
+      c.el.classList.toggle('resizable', selected && selectedIds.size === 1);
+    });
+  }
+
+  function attachDrag(c){
+    const el = c.el;
+    let sx, sy, moved, dragStarts;
+    el.addEventListener('pointerdown', e=>{
+      if(spaceDown || e.ctrlKey) return;
+      if(gesturing || activePointers.size >= 2) return;
+      if(e.target.closest('button,.resize-handle,[contenteditable="true"]')) return;
+      e.stopPropagation();
+      el.setPointerCapture(e.pointerId);
+      if(!selectedIds.has(c.id)) selectSingle(c.id);
+      selectedIds.forEach(id=>{
+        const card = cards.find(item=>item.id === id);
+        if(card && card.el) card.el.classList.add('dragging');
+      });
+      sx = e.clientX; sy = e.clientY; moved = false;
+      dragStarts = new Map();
+      selectedIds.forEach(id=>{
+        const card = cards.find(item=>item.id === id);
+        if(card) dragStarts.set(id, {x:card.x, y:card.y});
+      });
+      function move(ev){
+        if(gesturing) return;
+        ev.preventDefault();
+        const dx = (ev.clientX - sx) / view.scale;
+        const dy = (ev.clientY - sy) / view.scale;
+        if((Math.abs(dx) + Math.abs(dy)) * view.scale > 3) moved = true;
+        dragStarts.forEach((start,id)=>{
+          const card = cards.find(item=>item.id === id);
+          if(!card) return;
+          card.x = start.x + dx;
+          card.y = start.y + dy;
+        });
+        paintPositions();
+      }
+      function up(){
+        try{ el.releasePointerCapture(e.pointerId); }catch(_){}
+        cards.forEach(card=>card.el && card.el.classList.remove('dragging'));
+        el.removeEventListener('pointermove', move);
+        el.removeEventListener('pointerup', up);
+        el.removeEventListener('pointercancel', up);
+        if(moved) markDirty('位置已更新，尚未保存');
+        recompute();
+        paintSelection();
+      }
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', up);
+    });
+  }
+
+  function attachResize(c, el){
+    el.querySelectorAll('.resize-handle').forEach(handle=>{
+      const dir = handle.dataset.dir;
+      const vec = RESIZE_VEC[dir] || [0,0];
+      handle.addEventListener('pointerdown', e=>{
+        e.preventDefault();
+        e.stopPropagation();
+        if(!selectedIds.has(c.id) || selectedIds.size !== 1) selectSingle(c.id);
+        handle.setPointerCapture(e.pointerId);
+        c.el.classList.add('resizing','sized');
+        const sx = e.clientX;
+        const sy = e.clientY;
+        const startW = cardWidth(c);
+        const startH = cardHeight(c);
+        const startX = c.x;
+        const startY = c.y;
+        let moved = false;
+        function move(ev){
+          if(gesturing) return;
+          ev.preventDefault();
+          const dx = ev.clientX - sx;
+          const dy = ev.clientY - sy;
+          if(Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+          const wdx = dx / view.scale;
+          const wdy = dy / view.scale;
+          let w = startW, h = startH, x = startX, y = startY;
+          if(vec[0] === 1) w = Math.max(MIN_CARD_W, startW + wdx);
+          else if(vec[0] === -1){
+            w = Math.max(MIN_CARD_W, startW - wdx);
+            x = startX + (startW - w);
+          }
+          if(vec[1] === 1) h = Math.max(MIN_CARD_H, startH + wdy);
+          else if(vec[1] === -1){
+            h = Math.max(MIN_CARD_H, startH - wdy);
+            y = startY + (startH - h);
+          }
+          c.w = w; c.h = h; c.x = x; c.y = y;
+          c.el.style.width = w + 'px';
+          c.el.style.minHeight = h + 'px';
+          c.el.style.height = '';
+          c.el.style.left = x + 'px';
+          c.el.style.top = y + 'px';
+          recompute();
+        }
+        function up(){
+          try{ handle.releasePointerCapture(e.pointerId); }catch(_){}
+          c.el.classList.remove('resizing');
+          handle.removeEventListener('pointermove', move);
+          handle.removeEventListener('pointerup', up);
+          handle.removeEventListener('pointercancel', up);
+          if(moved) markDirty('卡片大小已更新，尚未保存');
+          recompute();
+          paintSelection();
+        }
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', up);
+        handle.addEventListener('pointercancel', up);
+      });
+    });
+  }
+
+  function scheduleRecompute(){
+    if(recomputeQueued) return;
+    recomputeQueued = true;
+    requestAnimationFrame(()=>{
+      recomputeQueued = false;
+      recompute();
+    });
+  }
+
+  function cardRect(c){
+    return {
+      left: c.x,
+      top: c.y,
+      right: c.x + cardWidth(c),
+      bottom: c.y + cardHeight(c)
+    };
+  }
+
+  function rectGap(a,b){
+    const dx = Math.max(0, Math.max(a.left - b.right, b.left - a.right));
+    const dy = Math.max(0, Math.max(a.top - b.bottom, b.top - a.bottom));
+    return Math.hypot(dx,dy);
+  }
+
+  function clusterSignature(members){
+    return members.map(c=>c.id).sort((a,b)=>a-b).join('-');
+  }
+
+  function recompute(){
+    const parent = {};
+    cards.forEach(c=>parent[c.id] = c.id);
+    function find(a){
+      while(parent[a] !== a){
+        parent[a] = parent[parent[a]];
+        a = parent[a];
+      }
+      return a;
+    }
+    function uni(a,b){ parent[find(a)] = find(b); }
+    for(let i=0;i<cards.length;i++){
+      for(let j=i+1;j<cards.length;j++){
+        if(rectGap(cardRect(cards[i]), cardRect(cards[j])) <= GROUP_GAP) uni(cards[i].id,cards[j].id);
+      }
+    }
+    const groups = {};
+    cards.forEach(c=>{
+      const r = find(c.id);
+      (groups[r] = groups[r] || []).push(c);
+    });
+    const clusters = [];
+    cards.forEach(c=>{ c.cluster = null; c.status = 'loose'; });
+    Object.values(groups).forEach(group=>{
+      if(group.length >= 2){
+        const sig = clusterSignature(group);
+        group.forEach(c=>{
+          c.cluster = sig;
+          c.status = (state.drafts[sig] || '').trim() ? 'harvested' : 'clustered';
+        });
+        clusters.push({key:sig,members:group});
+      }
+    });
+    currentClusters = clusters;
+    paintCards();
+    paintHulls(clusters);
+    paintSelection();
+  }
+
+  function paintCards(){
+    cards.forEach(c=>{
+      if(!c.el) return;
+      c.el.classList.toggle('clustered', c.status === 'clustered');
+      c.el.classList.toggle('harvested', c.status === 'harvested');
+      c.el.classList.toggle('selected', selectedIds.has(c.id));
+    });
+  }
+
+  const hullTints = ['var(--hull-sage)','var(--hull-lilac)','var(--hull-sand)','var(--hull-mist)'];
+  function paintHulls(clusters){
+    canvas.querySelectorAll('.hull').forEach(h=>h.remove());
+    clusters
+      .sort((a,b)=>Math.min(...a.members.map(m=>m.y))-Math.min(...b.members.map(m=>m.y)))
+      .forEach((cl,idx)=>{
+        const l = Math.min(...cl.members.map(m=>m.x)) - 18;
+        const t = Math.min(...cl.members.map(m=>m.y)) - 18;
+        const r = Math.max(...cl.members.map(m=>m.x + cardWidth(m))) + 18;
+        const b = Math.max(...cl.members.map(m=>m.y + cardHeight(m))) + 18;
+        const h = document.createElement('div');
+        h.className = 'hull';
+        h.dataset.cluster = cl.key;
+        h.style.left = l + 'px';
+        h.style.top = t + 'px';
+        h.style.width = (r-l) + 'px';
+        h.style.height = (b-t) + 'px';
+        h.style.background = hullTints[idx % hullTints.length];
+        h.addEventListener('pointerdown', e=>{
+          if(e.target.classList.contains('tag')) return;
+          if(spaceDown || e.ctrlKey) return;
+          if(gesturing || activePointers.size >= 2) return;
+          e.stopPropagation();
+          startClusterDrag(e, h, cl.key);
+        });
+
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.contentEditable = 'true';
+        tag.dataset.key = cl.key;
+        tag.textContent = state.labels[cl.key] || '未命名簇';
+        tag.addEventListener('focus', ()=>{
+          if(tag.textContent === '未命名簇') tag.textContent = '';
+        });
+        tag.addEventListener('blur', ()=>{
+          const v = tag.textContent.trim();
+          if(v){
+            state.labels[cl.key] = v;
+            tag.textContent = v;
+          }else{
+            delete state.labels[cl.key];
+            tag.textContent = '未命名簇';
+          }
+          markDirty('簇名已更新，尚未保存');
+          if(panel.classList.contains('open')) weave();
+        });
+        tag.addEventListener('keydown', e=>{
+          if(e.key === 'Enter'){
+            e.preventDefault();
+            tag.blur();
+          }
+        });
+
+        const count = document.createElement('span');
+        count.className = 'count';
+        count.textContent = cl.members.length + ' 张';
+        h.appendChild(tag);
+        h.appendChild(count);
+        canvas.appendChild(h);
+      });
+  }
+
+  function startClusterDrag(e, hull, key){
+    const members = cards.filter(c=>c.cluster === key);
+    if(members.length === 0) return;
+    hull.setPointerCapture(e.pointerId);
+    hull.classList.add('dragging');
+    selectCluster(key);
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const hx = parseFloat(hull.style.left) || 0;
+    const hy = parseFloat(hull.style.top) || 0;
+    const starts = members.map(c=>({card:c, x:c.x, y:c.y}));
+    let moved = false;
+    function move(ev){
+      if(gesturing) return;
+      ev.preventDefault();
+      const dx = (ev.clientX - sx) / view.scale;
+      const dy = (ev.clientY - sy) / view.scale;
+      if((Math.abs(dx) + Math.abs(dy)) * view.scale > 3) moved = true;
+      starts.forEach(item=>{
+        item.card.x = item.x + dx;
+        item.card.y = item.y + dy;
+      });
+      hull.style.left = (hx + dx) + 'px';
+      hull.style.top = (hy + dy) + 'px';
+      paintPositions(false);
+    }
+    function up(){
+      try{ hull.releasePointerCapture(e.pointerId); }catch(_){}
+      hull.classList.remove('dragging');
+      hull.removeEventListener('pointermove', move);
+      hull.removeEventListener('pointerup', up);
+      hull.removeEventListener('pointercancel', up);
+      if(moved) markDirty('簇位置已更新，尚未保存');
+      recompute();
+      paintSelection();
+    }
+    hull.addEventListener('pointermove', move);
+    hull.addEventListener('pointerup', up);
+    hull.addEventListener('pointercancel', up);
+  }
+
+  function rectsIntersect(a,b){
+    return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top;
+  }
+
+  function setSelectionBox(rect){
+    selectionBox.style.left = rect.left + 'px';
+    selectionBox.style.top = rect.top + 'px';
+    selectionBox.style.width = rect.width + 'px';
+    selectionBox.style.height = rect.height + 'px';
+  }
+
+  function startBoxSelect(e){
+    table.setPointerCapture(e.pointerId);
+    const tableRect = table.getBoundingClientRect();
+    const sx = e.clientX - tableRect.left;
+    const sy = e.clientY - tableRect.top;
+    selectionBox.classList.add('active');
+    setSelectionBox({left:sx, top:sy, width:0, height:0});
+    function move(ev){
+      if(gesturing) return;
+      ev.preventDefault();
+      const x = ev.clientX - tableRect.left;
+      const y = ev.clientY - tableRect.top;
+      const rect = {
+        left: Math.min(sx,x),
+        top: Math.min(sy,y),
+        width: Math.abs(x-sx),
+        height: Math.abs(y-sy)
+      };
+      rect.right = rect.left + rect.width;
+      rect.bottom = rect.top + rect.height;
+      setSelectionBox(rect);
+      const tl = screenToWorld(rect.left, rect.top);
+      const br = screenToWorld(rect.right, rect.bottom);
+      const worldRect = {left:tl.x, top:tl.y, right:br.x, bottom:br.y};
+      selectMany(cards.filter(c=>rectsIntersect(worldRect, cardRect(c))).map(c=>c.id));
+    }
+    function up(){
+      try{ table.releasePointerCapture(e.pointerId); }catch(_){}
+      table.removeEventListener('pointermove', move);
+      table.removeEventListener('pointerup', up);
+      table.removeEventListener('pointercancel', up);
+      selectionBox.classList.remove('active');
+      selectionBox.style.width = '0px';
+      selectionBox.style.height = '0px';
+    }
+    table.addEventListener('pointermove', move);
+    table.addEventListener('pointerup', up);
+    table.addEventListener('pointercancel', up);
+  }
+
+  function startPan(e){
+    table.setPointerCapture(e.pointerId);
+    table.classList.add('panning');
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const ox = view.x;
+    const oy = view.y;
+    let moved = false;
+    function move(ev){
+      ev.preventDefault();
+      const dx = ev.clientX - sx;
+      const dy = ev.clientY - sy;
+      if(Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+      view.x = ox + dx;
+      view.y = oy + dy;
+      state.view = view;
+      applyView();
+    }
+    function up(){
+      try{ table.releasePointerCapture(e.pointerId); }catch(_){}
+      table.classList.remove('panning');
+      table.removeEventListener('pointermove', move);
+      table.removeEventListener('pointerup', up);
+      table.removeEventListener('pointercancel', up);
+      if(moved) markDirty('画布位置已更新，尚未保存');
+    }
+    table.addEventListener('pointermove', move);
+    table.addEventListener('pointerup', up);
+    table.addEventListener('pointercancel', up);
+  }
+
+  function weave(){
+    recompute();
+    const byCluster = {};
+    cards.forEach(c=>{
+      if(c.cluster) (byCluster[c.cluster] = byCluster[c.cluster] || []).push(c);
+    });
+    const clusterKeys = Object.keys(byCluster)
+      .sort((a,b)=>Math.min(...byCluster[a].map(c=>c.y))-Math.min(...byCluster[b].map(c=>c.y)));
+    const loose = cards.filter(c=>!c.cluster);
+
+    panelBody.innerHTML = '';
+    if(clusterKeys.length === 0){
+      panelBody.innerHTML = '<div class="empty">还没有成簇的卡片。<br>先把几张拖到一起，让相近的挨着，秩序会自己浮出来。</div>';
+      subhead.textContent = '';
+      panel.classList.add('open');
+      return;
+    }
+
+    clusterKeys.forEach(key=>{
+      const mem = byCluster[key].sort((a,b)=>a.y-b.y || a.x-b.x);
+      const name = state.labels[key] || '未命名段落';
+      const sec = document.createElement('div');
+      sec.className = 'sec';
+      const h3 = document.createElement('h3');
+      h3.textContent = name;
+      const ul = document.createElement('ul');
+      ul.className = 'skel';
+      mem.forEach(c=>{
+        const li = document.createElement('li');
+        li.textContent = c.text;
+        ul.appendChild(li);
+      });
+      const ta = document.createElement('textarea');
+      ta.className = 'draft';
+      ta.placeholder = '把上面这几张串成你的话...';
+      ta.value = state.drafts[key] || '';
+      ta.addEventListener('input', ()=>{
+        state.drafts[key] = ta.value;
+        markDirty('草稿已更新，尚未保存');
+        recompute();
+        updateSubhead();
+      });
+      sec.appendChild(h3);
+      sec.appendChild(ul);
+      sec.appendChild(ta);
+      panelBody.appendChild(sec);
+    });
+
+    if(loose.length){
+      const sec = document.createElement('div');
+      sec.className = 'sec loose';
+      const h3 = document.createElement('h3');
+      h3.textContent = '还散落着 · ' + loose.length;
+      const ul = document.createElement('ul');
+      ul.className = 'skel';
+      loose.forEach(c=>{
+        const li = document.createElement('li');
+        li.textContent = c.text;
+        ul.appendChild(li);
+      });
+      sec.appendChild(h3);
+      sec.appendChild(ul);
+      panelBody.appendChild(sec);
+    }
+    updateSubhead();
+    panel.classList.add('open');
+  }
+
+  function updateSubhead(){
+    const clustered = cards.filter(c=>c.cluster).length;
+    const drafted = new Set(cards.filter(c=>c.cluster && (state.drafts[c.cluster] || '').trim()).map(c=>c.cluster)).size;
+    const total = new Set(cards.filter(c=>c.cluster).map(c=>c.cluster)).size;
+    subhead.textContent = total + ' 段 · ' + clustered + ' 张已入文 · ' + drafted + ' 段有草稿';
+  }
+
+  function cleanupOrphanDraftsAndLabels(){
+    recompute();
+    const active = new Set(cards.filter(c=>c.cluster).map(c=>c.cluster));
+    Object.keys(state.drafts).forEach(key=>{
+      if(!active.has(key)) delete state.drafts[key];
+    });
+    Object.keys(state.labels).forEach(key=>{
+      if(!active.has(key)) delete state.labels[key];
+    });
+  }
+
+  function stateToMarkdown(st) {
+    const lines = [];
+    const projectName = fileHandle ? fileHandle.name.replace(/\.md$/, '') : '未命名项目';
+    lines.push(`# 编织台 · ${projectName}`);
+    lines.push('');
+    lines.push('本文档由[编织台](https://github.com/google/antigravity)自动生成。你可以在编织台中打开并可视化编辑此文件。');
+    lines.push('');
+
+    // Group cards by cluster
+    const byCluster = {};
+    st.cards.forEach(c => {
+      if (c.cluster) {
+        (byCluster[c.cluster] = byCluster[c.cluster] || []).push(c);
+      }
+    });
+
+    // Sort cluster keys by average y coordinate of their cards
+    const clusterKeys = Object.keys(byCluster).sort((a, b) => {
+      const ay = byCluster[a].reduce((sum, c) => sum + c.y, 0) / byCluster[a].length;
+      const by = byCluster[b].reduce((sum, c) => sum + c.y, 0) / byCluster[b].length;
+      return ay - by;
+    });
+
+    // Write woven sections
+    clusterKeys.forEach(key => {
+      const name = st.labels[key] || '未命名段落';
+      const draft = st.drafts[key] || '';
+      lines.push(`## ${name}`);
+      if (draft.trim()) {
+        lines.push(draft.trim());
+      } else {
+        lines.push('*尚未编织此段落的草稿*');
+      }
+      lines.push('');
+
+      // List cards in this cluster
+      const sortedCards = byCluster[key].sort((a, b) => a.y - b.y || a.x - b.x);
+      sortedCards.forEach(c => {
+        lines.push(`* 📄 [卡片 ${c.id}]: ${c.text.replace(/\r?\n/g, ' ')}`);
+      });
+      lines.push('');
+    });
+
+    // Write loose cards
+    const loose = st.cards.filter(c => !c.cluster);
+    if (loose.length > 0) {
+      lines.push('## 散落的卡片');
+      lines.push('');
+      loose.forEach(c => {
+        lines.push(`* 📄 [卡片 ${c.id}]: ${c.text.replace(/\r?\n/g, ' ')}`);
+      });
+      lines.push('');
+    }
+
+    lines.push('---');
+    lines.push('<!-- Weaving Table Metadata');
+    lines.push(JSON.stringify(st, null, 2));
+    lines.push('-->');
+
+    return lines.join('\n');
+  }
+
+  function markdownToState(text) {
+    if (!text || !text.trim()) {
+      return {
+        version: 1,
+        idSeq: 0,
+        view: { x: 0, y: 0, scale: 1 },
+        cards: [],
+        labels: {},
+        drafts: {}
+      };
+    }
+
+    // 1. Try to find the Metadata block
+    const match = text.match(/<!-- Weaving Table Metadata\s*([\s\S]*?)\s*-->/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[1].trim());
+        parsed.cards = Array.isArray(parsed.cards) ? parsed.cards : [];
+        parsed.cards.forEach(c => {
+          if (c.w != null) c.w = Math.max(150, Number(c.w) || CARD_W);
+          if (c.h != null) c.h = Math.max(96, Number(c.h) || CARD_H);
+        });
+        parsed.labels = parsed.labels || {};
+        parsed.drafts = parsed.drafts || {};
+        parsed.view = parsed.view || { x: 0, y: 0, scale: 1 };
+        parsed.idSeq = parsed.idSeq || parsed.cards.reduce((m, c) => Math.max(m, c.id || 0), 0);
+        return parsed;
+      } catch (err) {
+        console.warn('Metadata JSON parsing failed, parsing as plain markdown fallback.', err);
+      }
+    }
+
+    // 2. Fallback: Parse normal markdown paragraphs/lists as cards
+    const cardsList = [];
+    let idSeq = 0;
+    const lines = text.split(/\r?\n/);
+    let currentParagraph = [];
+
+    function commitParagraph() {
+      const content = currentParagraph.join('\n').trim();
+      if (content) {
+        idSeq++;
+        cardsList.push({
+          id: idSeq,
+          text: content,
+          x: rand(80, 480),
+          y: rand(topLimit() + 20, 450),
+          createdAt: Date.now()
+        });
+      }
+      currentParagraph = [];
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('#') || line.startsWith('---') || line === '') {
+        commitParagraph();
+        continue;
+      }
+
+      // Check if it's a card entry from standard layout
+      const cardPattern = /^\*\s*📄\s*\[卡片\s*\d+\]:\s*(.*)/;
+      const cardMatch = lines[i].match(cardPattern);
+      if (cardMatch) {
+        commitParagraph();
+        idSeq++;
+        cardsList.push({
+          id: idSeq,
+          text: cardMatch[1].trim(),
+          x: rand(80, 480),
+          y: rand(topLimit() + 20, 450),
+          createdAt: Date.now()
+        });
+        continue;
+      }
+
+      // If it's a bullet point
+      if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('+ ')) {
+        commitParagraph();
+        const content = line.substring(2).trim();
+        if (content) {
+          idSeq++;
+          cardsList.push({
+            id: idSeq,
+            text: content,
+            x: rand(80, 480),
+            y: rand(topLimit() + 20, 450),
+            createdAt: Date.now()
+          });
+        }
+        continue;
+      }
+
+      currentParagraph.push(lines[i]);
+    }
+    commitParagraph();
+
+    return {
+      version: 1,
+      idSeq: idSeq,
+      view: { x: 0, y: 0, scale: 1 },
+      cards: cardsList,
+      labels: {},
+      drafts: {}
+    };
+  }
+
+  function openHandleDb() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) {
+        reject(new Error('IndexedDB unavailable'));
+        return;
+      }
+      const req = indexedDB.open('weaving-table-file-handle', 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore('handles');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function loadRememberedFileHandle() {
+    if (!window.showSaveFilePicker || typeof FileSystemHandle === 'undefined' || !('queryPermission' in FileSystemHandle.prototype)) return null;
+    try {
+      const db = await openHandleDb();
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get('current_md');
+      const handle = await new Promise((resolve, reject) => {
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+      db.close();
+      return handle;
+    } catch (err) {
+      console.warn('无法读取保存文件记忆', err);
+    }
+    return null;
+  }
+
+  async function rememberFileHandle(handle) {
+    if (!handle || !('indexedDB' in window)) return;
+    try {
+      const db = await openHandleDb();
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(handle, 'current_md');
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+      db.close();
+      fileHandleReady = true;
+    } catch (err) {
+      console.warn('无法记住保存文件', err);
+    }
+  }
+
+  async function ensureWritableFileHandle() {
+    if (!fileHandle) return false;
+    const opts = { mode: 'readwrite' };
+    if ((await fileHandle.queryPermission(opts)) === 'granted') return true;
+    return (await fileHandle.requestPermission(opts)) === 'granted';
+  }
+
+  async function saveToFile(showToastFlag = true) {
+    const mdContent = stateToMarkdown(serializeState());
+    if (fileHandle) {
+      try {
+        if (await ensureWritableFileHandle()) {
+          const writable = await fileHandle.createWritable();
+          await writable.write(mdContent);
+          await writable.close();
+          dirty = false;
+          saveStatus.textContent = '已保存: ' + fileHandle.name;
+          if (showToastFlag) showToast('已成功保存到 ' + fileHandle.name);
+          return true;
+        }
+      } catch (err) {
+        console.error(err);
+        saveStatus.textContent = '保存失败';
+        if (showToastFlag) showToast('保存失败: ' + err.message);
+        return false;
+      }
+    }
+    downloadMarkdown(mdContent);
+    return true;
+  }
+
+  function downloadMarkdown(content) {
+    const mdContent = content || stateToMarkdown(serializeState());
+    const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const name = fileHandle ? fileHandle.name : 'weaving-table.md';
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    dirty = false;
+    saveStatus.textContent = '已下载 MD 副本';
+    showToast('已经生成并下载 Markdown 副本。');
+  }
+
+  let autoSaveTimer = null;
+  function triggerAutoSave() {
+    if (!fileHandle) return;
+    saveStatus.textContent = '有未保存改动...';
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(async () => {
+      try {
+        const success = await saveToFile(false);
+        if (success) {
+          saveStatus.textContent = '自动保存成功';
+          setTimeout(() => {
+            if (saveStatus.textContent === '自动保存成功' && fileHandle) {
+              saveStatus.textContent = '已保存: ' + fileHandle.name;
+            }
+          }, 3000);
+        }
+      } catch (err) {
+        console.error('自动保存失败:', err);
+        saveStatus.textContent = '自动保存失败';
+      }
+    }, 1000);
+  }
+
+  function loadState(newState) {
+    state = newState;
+    cards = state.cards;
+    view = state.view;
+
+    selectedIds.clear();
+
+    if (cards.length === 0) {
+      extra.forEach(text => {
+        cards.push({
+          id: ++state.idSeq,
+          text,
+          x: rand(80, 520) - view.x,
+          y: rand(topLimit() + 12, 420) - view.y,
+          createdAt: Date.now()
+        });
+      });
+    }
+
+    renderCards();
+    applyView();
+    if (panel.classList.contains('open')) weave();
+  }
+
+  async function handleOpenFile() {
+    if (!window.showOpenFilePicker) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.md';
+      input.onchange = async () => {
+        if (input.files.length > 0) {
+          const file = input.files[0];
+          const text = await file.text();
+          const loadedState = markdownToState(text);
+          loadState(loadedState);
+          fileHandle = null;
+          fileHandleReady = false;
+          saveStatus.textContent = '已导入: ' + file.name + ' (离线模式)';
+          document.getElementById('splashOverlay').classList.add('hidden');
+          showToast('成功导入 ' + file.name + '。在此模式下修改请点击“导出 MD”保存。');
+        }
+      };
+      input.click();
+      return;
+    }
+
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{
+          description: 'Markdown 文档',
+          accept: { 'text/markdown': ['.md'] }
+        }]
+      });
+      const file = await handle.getFile();
+      const text = await file.text();
+      const loadedState = markdownToState(text);
+      loadState(loadedState);
+      fileHandle = handle;
+      await rememberFileHandle(handle);
+      saveStatus.textContent = '已载入: ' + handle.name;
+      document.getElementById('splashOverlay').classList.add('hidden');
+      showToast('成功载入 ' + handle.name);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error(err);
+        showToast('打开文件失败: ' + err.message);
+      }
+    }
+  }
+
+  async function handleNewFile() {
+    if (!window.showSaveFilePicker) {
+      const name = prompt('请输入新项目名称:', '未命名');
+      if (name) {
+        const demo = readEmbeddedState();
+        loadState(demo);
+        fileHandle = null;
+        fileHandleReady = false;
+        saveStatus.textContent = '新项目: ' + name + '.md (未保存)';
+        document.getElementById('splashOverlay').classList.add('hidden');
+        showToast('已创建新项目 "' + name + '"，可随时点击“导出 MD”下载保存。');
+      }
+      return;
+    }
+
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: '未命名编织.md',
+        types: [{
+          description: 'Markdown 文档',
+          accept: { 'text/markdown': ['.md'] }
+        }]
+      });
+      fileHandle = handle;
+      await rememberFileHandle(handle);
+
+      const demo = readEmbeddedState();
+      loadState(demo);
+
+      await saveToFile(false);
+
+      saveStatus.textContent = '已载入: ' + handle.name;
+      document.getElementById('splashOverlay').classList.add('hidden');
+      showToast('已创建新文件: ' + handle.name);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error(err);
+        showToast('新建文件失败: ' + err.message);
+      }
+    }
+  }
+
+  async function initApp() {
+    const splashOverlay = document.getElementById('splashOverlay');
+    const splashActions = document.getElementById('splashActions');
+
+    const rememberedHandle = await loadRememberedFileHandle();
+
+    if (rememberedHandle) {
+      fileHandle = rememberedHandle;
+      fileHandleReady = true;
+
+      splashActions.innerHTML = `
+        <button class="splash-btn primary" id="splashResume">继续编辑上次的 "${rememberedHandle.name}"</button>
+        <button class="splash-btn secondary" id="splashOpen">打开其他 Markdown 文件 (.md)</button>
+        <button class="splash-btn secondary" id="splashNew">新建数据文件 (.md)</button>
+        <button class="splash-btn ghost" id="splashDemo">使用演示数据 (离线模式)</button>
+      `;
+
+      document.getElementById('splashResume').addEventListener('click', async () => {
+        try {
+          const opts = { mode: 'readwrite' };
+          if ((await fileHandle.queryPermission(opts)) === 'granted' || (await fileHandle.requestPermission(opts)) === 'granted') {
+            const file = await fileHandle.getFile();
+            const text = await file.text();
+            const loadedState = markdownToState(text);
+            loadState(loadedState);
+            saveStatus.textContent = '已载入: ' + fileHandle.name;
+            splashOverlay.classList.add('hidden');
+            showToast('已恢复编辑 ' + fileHandle.name);
+          }
+        } catch (err) {
+          console.error(err);
+          showToast('无法读取上次的文件，请重新选择');
+          // Fall back to no resume UI
+          splashActions.innerHTML = `
+            <button class="splash-btn primary" id="splashOpen">打开已有 Markdown 文件 (.md)</button>
+            <button class="splash-btn primary" id="splashNew">新建数据文件 (.md)</button>
+            <button class="splash-btn ghost" id="splashDemo">使用演示数据 (离线模式)</button>
+          `;
+          document.getElementById('splashOpen').addEventListener('click', handleOpenFile);
+          document.getElementById('splashNew').addEventListener('click', handleNewFile);
+          document.getElementById('splashDemo').addEventListener('click', () => {
+            const embedded = readEmbeddedState();
+            loadState(embedded);
+            fileHandle = null;
+            fileHandleReady = false;
+            saveStatus.textContent = '演示模式 (未关联本地文件)';
+            splashOverlay.classList.add('hidden');
+          });
+        }
+      });
+    } else {
+      splashActions.innerHTML = `
+        <button class="splash-btn primary" id="splashOpen">打开已有 Markdown 文件 (.md)</button>
+        <button class="splash-btn primary" id="splashNew">新建数据文件 (.md)</button>
+        <button class="splash-btn ghost" id="splashDemo">使用演示数据 (离线模式)</button>
+      `;
+    }
+
+    document.getElementById('splashOpen').addEventListener('click', handleOpenFile);
+    document.getElementById('splashNew').addEventListener('click', handleNewFile);
+    document.getElementById('splashDemo').addEventListener('click', () => {
+      const embedded = readEmbeddedState();
+      loadState(embedded);
+      fileHandle = null;
+      fileHandleReady = false;
+      saveStatus.textContent = '演示模式 (未关联本地文件)';
+      splashOverlay.classList.add('hidden');
+    });
+  }
+
+  function isTypingTarget(target) {
+    return target.closest('textarea,input,[contenteditable="true"],button');
+  }
+
+  table.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    if (isTypingTarget(e.target)) return;
+    if (spaceDown) {
+      e.preventDefault();
+      startPan(e);
+      return;
+    }
+    if (e.ctrlKey) {
+      e.preventDefault();
+      startBoxSelect(e);
+      return;
+    }
+    if (e.target === table || e.target === selectionBox) clearSelection();
+  });
+
+  table.addEventListener('dblclick', e => {
+    if (isTypingTarget(e.target)) return;
+    if (e.target !== table && e.target !== selectionBox) return;
+    e.preventDefault();
+    const tableRect = table.getBoundingClientRect();
+    createCardAt(e.clientX - tableRect.left, e.clientY - tableRect.top, '');
+  });
+
+  function zoomAround(newScale, fx, fy) {
+    newScale = clamp(newScale, SCALE_MIN, SCALE_MAX);
+    const w = screenToWorld(fx, fy);
+    view.scale = newScale;
+    view.x = fx - w.x * newScale;
+    view.y = fy - w.y * newScale;
+    state.view = view;
+    applyView();
+  }
+
+  function resetZoom() {
+    const fx = table.clientWidth / 2;
+    const fy = table.clientHeight / 2;
+    zoomAround(1, fx, fy);
+    markDirty('画布缩放已复位，尚未保存');
+  }
+
+  table.addEventListener('wheel', e => {
+    if (isTypingTarget(e.target)) return;
+    e.preventDefault();
+    const tableRect = table.getBoundingClientRect();
+    const fx = e.clientX - tableRect.left;
+    const fy = e.clientY - tableRect.top;
+    if (e.ctrlKey) {
+      zoomAround(view.scale * Math.exp(-e.deltaY * 0.01), fx, fy);
+    } else {
+      view.x -= e.deltaX;
+      view.y -= e.deltaY;
+      state.view = view;
+      applyView();
+    }
+    markDirty('画布已调整，尚未保存');
+  }, { passive: false });
+
+  let gestureStart = null;
+  function pinchInfo() {
+    const pts = [...activePointers.values()];
+    const tableRect = table.getBoundingClientRect();
+    return {
+      x: (pts[0].x + pts[1].x) / 2 - tableRect.left,
+      y: (pts[0].y + pts[1].y) / 2 - tableRect.top,
+      dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1
+    };
+  }
+  function beginGesture() {
+    const m = pinchInfo();
+    gestureStart = { dist: m.dist, scale: view.scale, world: screenToWorld(m.x, m.y) };
+    gesturing = true;
+    cards.forEach(card => card.el && card.el.classList.remove('dragging'));
+  }
+  function updateGesture() {
+    if (!gestureStart) return;
+    const m = pinchInfo();
+    const s = clamp(gestureStart.scale * (m.dist / gestureStart.dist), SCALE_MIN, SCALE_MAX);
+    view.scale = s;
+    view.x = m.x - gestureStart.world.x * s;
+    view.y = m.y - gestureStart.world.y * s;
+    state.view = view;
+    applyView();
+  }
+  function endGesture() {
+    if (gesturing) markDirty('画布已调整，尚未保存');
+    gesturing = false;
+    gestureStart = null;
+  }
+  table.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'touch') return;
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activePointers.size === 2) beginGesture();
+  }, true);
+  table.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'touch') return;
+    if (!activePointers.has(e.pointerId)) return;
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (gesturing && activePointers.size >= 2) {
+      e.preventDefault();
+      updateGesture();
+    }
+  }, true);
+  function dropPointer(e) {
+    if (e.pointerType !== 'touch') return;
+    activePointers.delete(e.pointerId);
+    if (activePointers.size < 2) endGesture();
+  }
+  table.addEventListener('pointerup', dropPointer, true);
+  table.addEventListener('pointercancel', dropPointer, true);
+
+  window.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+      e.preventDefault();
+      resetZoom();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault();
+      saveToFile(true);
+      return;
+    }
+    if (isTypingTarget(e.target)) return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      spaceDown = true;
+      table.classList.add('space-ready');
+      return;
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selectedIds.size === 0) return;
+      e.preventDefault();
+      deleteCards([...selectedIds], true);
+    }
+  });
+
+  window.addEventListener('keyup', e => {
+    if (e.code === 'Space') {
+      spaceDown = false;
+      table.classList.remove('space-ready');
+    }
+  });
+
+  document.getElementById('addCard').addEventListener('click', () => {
+    createCardAt(Math.max(70, table.clientWidth / 2 - CARD_W / 2), Math.max(topLimit() + 16, table.clientHeight / 2 - 80), '');
+  });
+  document.getElementById('cancelCompose').addEventListener('click', closeComposer);
+  document.getElementById('commitCompose').addEventListener('click', commitComposer);
+  composerText.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commitComposer();
+    if (e.key === 'Escape') closeComposer();
+  });
+  document.getElementById('weave').addEventListener('click', weave);
+  document.getElementById('close').addEventListener('click', () => panel.classList.remove('open'));
+  document.getElementById('saveFile').addEventListener('click', () => saveToFile(true));
+  document.getElementById('downloadFile').addEventListener('click', () => downloadMarkdown());
+  document.getElementById('openFile').addEventListener('click', handleOpenFile);
+
+  window.addEventListener('beforeunload', e => {
+    if (!dirty) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
+  window.addEventListener('resize', () => {
+    cards.forEach(clampCard);
+    paintPositions();
+    recompute();
+  });
+
+  // Start the App
+  initApp();
+})();
+</script>
+
+
+
+
+
+</body></html>
