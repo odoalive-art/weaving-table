@@ -1144,7 +1144,7 @@
     else if (count >= 7) cols = 4;
     else cols = 3;
 
-    const colWidth = 260;
+    const colWidth = 320;
     const gap = 16;
 
     // Temporarily apply width to elements to measure natural height
@@ -1202,7 +1202,7 @@
 
     members.sort((a, b) => a.y - b.y || a.id - b.id);
 
-    const colWidth = 220;
+    const colWidth = 280;
     const cascadeOffset = 6;
 
     members.forEach((c, idx) => {
@@ -1226,10 +1226,10 @@
 
     recompute();
 
-    let currentX = 50;
-    const startY = 50;
+    const startX = 50;
+    let currentY = 50;
     const gapBetweenClusters = 200;
-    const colWidth = 260;
+    const colWidth = 320;
     const gapInside = 16;
 
     currentClusters.forEach(cl => {
@@ -1272,16 +1272,15 @@
           }
         }
 
-        c.x = currentX + minCol * (colWidth + gapInside);
-        c.y = startY + colHeights[minCol];
+        c.x = startX + minCol * (colWidth + gapInside);
+        c.y = currentY + colHeights[minCol];
 
         colHeights[minCol] += item.height + gapInside;
       });
 
       const maxColHeight = Math.max(...colHeights);
-      const clusterWidth = cols * colWidth + (cols - 1) * gapInside;
 
-      currentX += clusterWidth + gapBetweenClusters;
+      currentY += maxColHeight + gapBetweenClusters;
     });
 
     const loose = cards.filter(c => !c.cluster);
@@ -1319,8 +1318,8 @@
           }
         }
 
-        c.x = currentX + minCol * (colWidth + gapInside);
-        c.y = startY + colHeights[minCol];
+        c.x = startX + minCol * (colWidth + gapInside);
+        c.y = currentY + colHeights[minCol];
 
         colHeights[minCol] += item.height + gapInside;
       });
