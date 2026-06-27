@@ -111,16 +111,16 @@
   }
   .hull.dragging{cursor:grabbing;transition:none;z-index:3}
   .hull .tag{
-    position:absolute;top:-14px;left:16px;pointer-events:auto;
+    position:absolute;top:-28px;left:16px;pointer-events:auto;
     font-size:12px;color:var(--ink-soft);background:var(--card);
     border:1px solid var(--card-edge);border-radius:7px;padding:2px 9px;
     box-shadow:var(--shadow);outline:none;min-width:24px;max-width:220px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
   .hull .tag:focus{color:var(--ink);border-color:var(--slate);max-width:320px}
-  .hull .count{position:absolute;top:-11px;right:14px;font-size:10.5px;color:var(--ink-faint)}
+  .hull .count{position:absolute;top:-25px;right:14px;font-size:10.5px;color:var(--ink-faint)}
   .hull .bento-btn{
-    position:absolute;top:-14px;right:52px;pointer-events:auto;
+    position:absolute;top:-28px;right:54px;pointer-events:auto;
     font-size:11px;color:var(--ink-soft);background:var(--card);
     border:1px solid var(--card-edge);border-radius:7px;padding:2px 8px;
     box-shadow:var(--shadow);outline:none;cursor:pointer;
@@ -570,6 +570,7 @@
       });
       parsed.labels = parsed.labels || {};
       parsed.drafts = parsed.drafts || {};
+      parsed.layouts = parsed.layouts || {};
       parsed.view = parsed.view || {x:0,y:0};
       parsed.view.x = Number(parsed.view.x) || 0;
       parsed.view.y = Number(parsed.view.y) || 0;
@@ -578,7 +579,7 @@
       return parsed;
     }catch(err){
       alert('数据读取失败：HTML 里的 weaving-data 不是有效 JSON。');
-      return {version:1,idSeq:0,cards:[],labels:{},drafts:{}};
+      return {version:1,idSeq:0,cards:[],labels:{},drafts:{},layouts:{}};
     }
   }
 
@@ -598,7 +599,8 @@
         createdAt:c.createdAt || Date.now()
       })),
       labels: state.labels,
-      drafts: state.drafts
+      drafts: state.drafts,
+      layouts: state.layouts
     };
   }
 
@@ -1405,27 +1407,31 @@
         count.className = 'count';
         count.textContent = cl.members.length + ' 张';
         
-        const bentoBtn = document.createElement('button');
-        bentoBtn.className = 'bento-btn';
-        bentoBtn.title = '展开卡片组为单列';
-        bentoBtn.textContent = '📋 展开';
-        bentoBtn.addEventListener('click', e => {
+        const layoutMode = state.layouts[cl.key] || 'expanded';
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'bento-btn';
+        
+        if (layoutMode === 'stacked') {
+          toggleBtn.textContent = '📋 展开';
+          toggleBtn.title = '展开卡片组为单列';
+        } else {
+          toggleBtn.textContent = '🥞 堆叠';
+          toggleBtn.title = '将卡片组堆叠';
+        }
+        
+        toggleBtn.addEventListener('click', e => {
           e.stopPropagation();
-          arrangeBento(cl.key);
-        });
-
-        const stackBtn = document.createElement('button');
-        stackBtn.className = 'stack-btn';
-        stackBtn.title = '将卡片组堆叠';
-        stackBtn.textContent = '🥞 堆叠';
-        stackBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          arrangeStack(cl.key);
+          if (layoutMode === 'stacked') {
+            state.layouts[cl.key] = 'expanded';
+            arrangeBento(cl.key);
+          } else {
+            state.layouts[cl.key] = 'stacked';
+            arrangeStack(cl.key);
+          }
         });
         
         h.appendChild(tag);
-        h.appendChild(bentoBtn);
-        h.appendChild(stackBtn);
+        h.appendChild(toggleBtn);
         h.appendChild(count);
         canvas.appendChild(h);
       });
@@ -1639,11 +1645,15 @@
   function cleanupOrphanDraftsAndLabels(){
     recompute();
     const active = new Set(cards.filter(c=>c.cluster).map(c=>c.cluster));
+    if(!state.layouts) state.layouts = {};
     Object.keys(state.drafts).forEach(key=>{
       if(!active.has(key)) delete state.drafts[key];
     });
     Object.keys(state.labels).forEach(key=>{
       if(!active.has(key)) delete state.labels[key];
+    });
+    Object.keys(state.layouts).forEach(key=>{
+      if(!active.has(key)) delete state.layouts[key];
     });
   }
 
