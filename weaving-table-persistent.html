@@ -571,6 +571,12 @@
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
+  function calculateIdealWidth(text) {
+    if (!text) return CARD_W;
+    const len = text.length;
+    return Math.min(420, Math.max(CARD_W, Math.round(CARD_W + Math.sqrt(len) * 11)));
+  }
+
   function topLimit(){
     const bar = document.querySelector('.bar');
     return Math.max(62, Math.ceil(bar.getBoundingClientRect().height) + 10);
@@ -637,7 +643,11 @@
       el.dataset.id = c.id;
       el.style.left = c.x + 'px';
       el.style.top = c.y + 'px';
-      if(c.w) el.style.width = c.w + 'px';
+      if(c.w) {
+        el.style.width = c.w + 'px';
+      } else {
+        el.style.width = calculateIdealWidth(c.text) + 'px';
+      }
       if(c.h){
         el.style.minHeight = c.h + 'px';
         el.classList.add('sized');
@@ -1086,6 +1096,9 @@
       c.el.classList.toggle('clustered', c.status === 'clustered');
       c.el.classList.toggle('harvested', c.status === 'harvested');
       c.el.classList.toggle('selected', selectedIds.has(c.id));
+      if (!c.w && !c.el.classList.contains('editing')) {
+        c.el.style.width = calculateIdealWidth(c.text) + 'px';
+      }
     });
   }
 
