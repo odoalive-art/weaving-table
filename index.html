@@ -1096,7 +1096,7 @@
       c.el.classList.toggle('clustered', c.status === 'clustered');
       c.el.classList.toggle('harvested', c.status === 'harvested');
       c.el.classList.toggle('selected', selectedIds.has(c.id));
-      if (!c.w && !c.el.classList.contains('editing')) {
+      if (!c.w) {
         c.el.style.width = calculateIdealWidth(c.text) + 'px';
       }
     });
@@ -2013,6 +2013,20 @@
   document.getElementById('saveFile').addEventListener('click', () => saveToFile(true));
   document.getElementById('downloadFile').addEventListener('click', () => downloadMarkdown());
   document.getElementById('openFile').addEventListener('click', handleOpenFile);
+
+  // Prevent browser native scrolling when contenteditable overflows the viewport
+  window.addEventListener('scroll', () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+  }, { passive: true });
+
+  table.addEventListener('scroll', () => {
+    if (table.scrollTop !== 0 || table.scrollLeft !== 0) {
+      table.scrollTop = 0;
+      table.scrollLeft = 0;
+    }
+  });
 
   window.addEventListener('beforeunload', e => {
     if (!dirty) return;
