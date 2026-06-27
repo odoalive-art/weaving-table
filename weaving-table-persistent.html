@@ -793,12 +793,14 @@
     }
     if(activeEditId){
       const c = cards.find(card=>card.id === activeEditId);
-      if(c){
+      if(c && c.text !== text){
+        pushHistory();
         c.text = text;
         c.el.querySelector('.txt').textContent = text;
         markDirty('卡片已更新，尚未保存');
       }
     }else{
+      pushHistory();
       const W = table.clientWidth;
       const H = table.clientHeight;
       const sx = rand(70, Math.max(80, W - CARD_W - 40));
@@ -822,6 +824,7 @@
   }
 
   function createCardAt(screenLeft, screenTop, text){
+    pushHistory();
     const world = screenToWorld(screenLeft, screenTop);
     const c = {
       id: ++state.idSeq,
@@ -875,6 +878,9 @@
       txt.contentEditable = 'false';
       c.el.classList.remove('editing');
       const next = commit ? normalizeEditedText(txt).trim() : original;
+      if (commit && next !== original && next) {
+        pushHistory();
+      }
       if(!next && (fromNewCard || c.isNewEditing)){
         deleteCards([c.id], true);
         return;
@@ -923,6 +929,7 @@
   }
 
   function deleteCards(ids, silent){
+    pushHistory();
     const remove = new Set(ids);
     if(remove.size === 0) return;
     if(!silent && remove.size > 1 && !confirm('删除选中的 ' + remove.size + ' 张卡片？')) return;
@@ -990,6 +997,36 @@
     }
   }
 
+  const undoStack = [];
+  const MAX_HISTORY = 50;
+
+  function pushHistory() {
+    const snapshot = {
+      cards: JSON.parse(JSON.stringify(cards)),
+      labels: JSON.parse(JSON.stringify(state.labels || {})),
+      drafts: JSON.parse(JSON.stringify(state.drafts || {}))
+    };
+    undoStack.push(snapshot);
+    if (undoStack.length > MAX_HISTORY) {
+      undoStack.shift();
+    }
+  }
+
+  function undo() {
+    if (undoStack.length === 0) {
+      toastMessage('没有可以撤回的操作');
+      return;
+    }
+    const prev = undoStack.pop();
+    cards = prev.cards;
+    state.cards = cards;
+    state.labels = prev.labels;
+    state.drafts = prev.drafts;
+    renderCards();
+    markDirty('已撤回更改');
+    toastMessage('已撤回');
+  }
+
   function attachDrag(c){
     const el = c.el;
     let sx, sy, moved, dragStarts;
@@ -1001,6 +1038,12 @@
       
       if(!selectedIds.has(c.id)) selectSingle(c.id);
       selectedIds.forEach(id => bringToFront(id));
+      
+      const dragSnapshot = {
+        cards: JSON.parse(JSON.stringify(cards)),
+        labels: JSON.parse(JSON.stringify(state.labels || {})),
+        drafts: JSON.parse(JSON.stringify(state.drafts || {}))
+      };
       
       el.setPointerCapture(e.pointerId);
       selectedIds.forEach(id=>{
@@ -1033,8 +1076,12 @@
         el.removeEventListener('pointermove', move);
         el.removeEventListener('pointerup', up);
         el.removeEventListener('pointercancel', up);
-        if(moved) markDirty('位置已更新，尚未保存');
-        recompute();
+        if(moved) {
+          undoStack.push(dragSnapshot);
+          if (undoStack.length > MAX_HISTORY) undoStack.shift();
+          markDirty('位置已更新，尚未保存');
+          recompute();
+        }
         paintSelection();
       }
       el.addEventListener('pointermove', move);
@@ -1053,6 +1100,13 @@
         if(!selectedIds.has(c.id) || selectedIds.size !== 1) selectSingle(c.id);
         handle.setPointerCapture(e.pointerId);
         c.el.classList.add('resizing','sized');
+        
+        const resizeSnapshot = {
+          cards: JSON.parse(JSON.stringify(cards)),
+          labels: JSON.parse(JSON.stringify(state.labels || {})),
+          drafts: JSON.parse(JSON.stringify(state.drafts || {}))
+        };
+        
         const sx = e.clientX;
         const sy = e.clientY;
         const startW = cardWidth(c);
@@ -1093,8 +1147,12 @@
           handle.removeEventListener('pointermove', move);
           handle.removeEventListener('pointerup', up);
           handle.removeEventListener('pointercancel', up);
-          if(moved) markDirty('卡片大小已更新，尚未保存');
-          recompute();
+          if(moved) {
+            undoStack.push(resizeSnapshot);
+            if (undoStack.length > MAX_HISTORY) undoStack.shift();
+            markDirty('卡片大小已更新，尚未保存');
+            recompute();
+          }
           paintSelection();
         }
         handle.addEventListener('pointermove', move);
@@ -1135,6 +1193,7 @@
   function arrangeBento(clusterKey) {
     const members = cards.filter(c => c.cluster === clusterKey);
     if (members.length === 0) return;
+    pushHistory();
 
     const startX = Math.min(...members.map(m => m.x));
     const startY = Math.min(...members.map(m => m.y));
@@ -1178,6 +1237,7 @@
   function arrangeStack(clusterKey) {
     const members = cards.filter(c => c.cluster === clusterKey);
     if (members.length === 0) return;
+    pushHistory();
 
     const startX = Math.min(...members.map(m => m.x));
     const startY = Math.min(...members.map(m => m.y));
@@ -1205,6 +1265,7 @@
 
   function tidyBoard() {
     if (cards.length === 0) return;
+    pushHistory();
 
     recompute();
 
@@ -1370,12 +1431,14 @@
           e.stopPropagation();
           e.preventDefault();
           tag.contentEditable = 'true';
-          tag.focus();
-          const range = document.createRange();
-          range.selectNodeContents(tag);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
+          setTimeout(() => {
+            tag.focus();
+            const range = document.createRange();
+            range.selectNodeContents(tag);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }, 0);
         });
 
         tag.addEventListener('focus', ()=>{
@@ -1385,15 +1448,21 @@
         tag.addEventListener('blur', ()=>{
           tag.contentEditable = 'false';
           const v = tag.textContent.trim();
-          if(v){
-            state.labels[cl.key] = v;
-            tag.textContent = v;
-          }else{
-            delete state.labels[cl.key];
-            tag.textContent = '未命名簇';
+          const oldVal = state.labels[cl.key];
+          if(v !== (oldVal || '')){
+            pushHistory();
+            if(v){
+              state.labels[cl.key] = v;
+              tag.textContent = v;
+            }else{
+              delete state.labels[cl.key];
+              tag.textContent = '未命名簇';
+            }
+            markDirty('簇名已更新，尚未保存');
+            if(panel.classList.contains('open')) weave();
+          } else {
+            tag.textContent = oldVal || '未命名簇';
           }
-          markDirty('簇名已更新，尚未保存');
-          if(panel.classList.contains('open')) weave();
         });
         
         tag.addEventListener('keydown', e=>{
@@ -1416,6 +1485,13 @@
   function startClusterDrag(e, hull, key){
     const members = cards.filter(c=>c.cluster === key);
     if(members.length === 0) return;
+    
+    const clusterSnapshot = {
+      cards: JSON.parse(JSON.stringify(cards)),
+      labels: JSON.parse(JSON.stringify(state.labels || {})),
+      drafts: JSON.parse(JSON.stringify(state.drafts || {}))
+    };
+    
     hull.classList.add('dragging');
     selectCluster(key);
     members.forEach(m => bringToFront(m.id));
@@ -1453,6 +1529,8 @@
       hull.removeEventListener('pointerup', up);
       hull.removeEventListener('pointercancel', up);
       if(moved) {
+        undoStack.push(clusterSnapshot);
+        if (undoStack.length > MAX_HISTORY) undoStack.shift();
         markDirty('簇位置已更新，尚未保存');
         recompute();
       }
@@ -1581,6 +1659,9 @@
       ta.className = 'draft';
       ta.placeholder = '把上面这几张串成你的话...';
       ta.value = state.drafts[key] || '';
+      ta.addEventListener('focus', () => {
+        pushHistory();
+      });
       ta.addEventListener('input', ()=>{
         state.drafts[key] = ta.value;
         markDirty('草稿已更新，尚未保存');
@@ -2244,6 +2325,11 @@
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
       e.preventDefault();
       saveToFile(true);
+      return;
+    }
+    if (!isTypingTarget(e.target) && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      undo();
       return;
     }
     if (isTypingTarget(e.target)) return;
