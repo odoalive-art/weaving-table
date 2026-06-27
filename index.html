@@ -748,27 +748,6 @@
       meta.className = 'meta';
       meta.innerHTML = '<span class="status"></span><span class="stamp"></span>';
       meta.querySelector('.stamp').textContent = stampText(c);
-
-      const edit = document.createElement('button');
-      edit.className = 'mini';
-      edit.type = 'button';
-      edit.textContent = '✏️';
-      edit.title = '编辑';
-      edit.addEventListener('click', ev=>{
-        ev.stopPropagation();
-        startCardEdit(c);
-      });
-      const del = document.createElement('button');
-      del.className = 'mini danger';
-      del.type = 'button';
-      del.textContent = '🗑️';
-      del.title = '删除';
-      del.addEventListener('click', ev=>{
-        ev.stopPropagation();
-        removeCard(c.id);
-      });
-      meta.appendChild(edit);
-      meta.appendChild(del);
       el.appendChild(meta);
 
       RESIZE_DIRS.forEach(dir=>{
@@ -1164,6 +1143,13 @@
         e.stopPropagation();
         if(!selectedIds.has(c.id) || selectedIds.size !== 1) selectSingle(c.id);
         handle.setPointerCapture(e.pointerId);
+        const startW = cardWidth(c);
+        const startH = cardHeight(c);
+        
+        c.el.style.width = startW + 'px';
+        c.el.style.minHeight = startH + 'px';
+        c.el.style.height = '';
+        
         c.el.classList.add('resizing','sized');
         
         const resizeSnapshot = {
@@ -1174,8 +1160,6 @@
         
         const sx = e.clientX;
         const sy = e.clientY;
-        const startW = cardWidth(c);
-        const startH = cardHeight(c);
         const startX = c.x;
         const startY = c.y;
         let moved = false;
@@ -1263,7 +1247,7 @@
     const startX = Math.min(...members.map(m => m.x));
     const startY = Math.min(...members.map(m => m.y));
 
-    const colWidth = 320;
+    const colWidth = 420;
     const gap = 16;
 
     // Sort by original Y coordinate to keep logical top-to-bottom order
@@ -1309,7 +1293,7 @@
 
     members.sort((a, b) => a.y - b.y || a.id - b.id);
 
-    const colWidth = 280;
+    const colWidth = 420;
     const cascadeOffset = 6;
 
     members.forEach((c, idx) => {
@@ -1337,7 +1321,7 @@
     let currentX = 50;
     const startY = 50;
     const gapBetweenGroups = 200;
-    const colWidth = 320;
+    const colWidth = 420;
     const gapInside = 16;
 
     // 1. Lay out each cluster as a vertical column, side-by-side horizontally
