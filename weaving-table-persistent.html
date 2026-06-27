@@ -1407,31 +1407,7 @@
         count.className = 'count';
         count.textContent = cl.members.length + ' 张';
         
-        const layoutMode = state.layouts[cl.key] || 'expanded';
-        const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'bento-btn';
-        
-        if (layoutMode === 'stacked') {
-          toggleBtn.textContent = '📋 展开';
-          toggleBtn.title = '展开卡片组为单列';
-        } else {
-          toggleBtn.textContent = '🥞 堆叠';
-          toggleBtn.title = '将卡片组堆叠';
-        }
-        
-        toggleBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          if (layoutMode === 'stacked') {
-            state.layouts[cl.key] = 'expanded';
-            arrangeBento(cl.key);
-          } else {
-            state.layouts[cl.key] = 'stacked';
-            arrangeStack(cl.key);
-          }
-        });
-        
         h.appendChild(tag);
-        h.appendChild(toggleBtn);
         h.appendChild(count);
         canvas.appendChild(h);
       });
