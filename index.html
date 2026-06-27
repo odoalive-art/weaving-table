@@ -119,6 +119,18 @@
   }
   .hull .tag:focus{color:var(--ink);border-color:var(--slate);max-width:320px}
   .hull .count{position:absolute;top:-11px;right:14px;font-size:10.5px;color:var(--ink-faint)}
+  .hull .bento-btn{
+    position:absolute;top:-14px;right:52px;pointer-events:auto;
+    font-size:11px;color:var(--ink-soft);background:var(--card);
+    border:1px solid var(--card-edge);border-radius:7px;padding:2px 8px;
+    box-shadow:var(--shadow);outline:none;cursor:pointer;
+    transition:transform .12s ease,box-shadow .12s ease,background .12s ease;
+  }
+  .hull .bento-btn:hover{
+    transform:translateY(-1px);box-shadow:var(--shadow-lift);
+    color:var(--ink);border-color:var(--slate);
+  }
+  .hull .bento-btn:active{transform:translateY(0)}
 
   .card{
     position:absolute;width:214px;min-width:150px;min-height:96px;z-index:10;
@@ -1079,6 +1091,69 @@
     return members.map(c=>c.id).sort((a,b)=>a-b).join('-');
   }
 
+  function arrangeBento(clusterKey) {
+    const members = cards.filter(c => c.cluster === clusterKey);
+    if (members.length === 0) return;
+
+    const startX = Math.min(...members.map(m => m.x));
+    const startY = Math.min(...members.map(m => m.y));
+
+    const count = members.length;
+    let cols = 3;
+    if (count === 2) cols = 2;
+    else if (count === 4) cols = 2;
+    else if (count >= 7) cols = 4;
+    else cols = 3;
+
+    const colWidth = 260;
+    const gap = 16;
+
+    // Temporarily apply width to elements to measure natural height
+    members.forEach(c => {
+      if (c.el) {
+        c.el.style.width = colWidth + 'px';
+        c.el.style.height = '';
+        c.el.classList.remove('sized');
+      }
+      c.w = colWidth;
+      delete c.h;
+    });
+
+    // Force reflow and get heights
+    const naturalHeights = members.map(c => ({
+      card: c,
+      height: c.el ? c.el.offsetHeight : 120
+    }));
+
+    // Sort by original Y coordinate to keep logical top-to-bottom order
+    naturalHeights.sort((a, b) => a.card.y - b.card.y || a.card.x - b.card.x);
+
+    const colHeights = new Array(cols).fill(0);
+
+    naturalHeights.forEach(item => {
+      const c = item.card;
+      // Find min height column
+      let minCol = 0;
+      let minH = colHeights[0];
+      for (let j = 1; j < cols; j++) {
+        if (colHeights[j] < minH) {
+          minH = colHeights[j];
+          minCol = j;
+        }
+      }
+
+      // Position the card
+      c.x = startX + minCol * (colWidth + gap);
+      c.y = startY + colHeights[minCol];
+
+      // Update height
+      colHeights[minCol] += item.height + gap;
+    });
+
+    markDirty('已对卡片组进行 Bento 整理');
+    renderCards();
+  }
+
   function recompute(){
     const parent = {};
     cards.forEach(c=>parent[c.id] = c.id);
@@ -1149,7 +1224,7 @@
         h.style.height = (b-t) + 'px';
         h.style.background = hullTints[idx % hullTints.length];
         h.addEventListener('pointerdown', e=>{
-          if(e.target.classList.contains('tag')) return;
+          if(e.target.classList.contains('tag') && tag.contentEditable === 'true') return;
           if(spaceDown || e.ctrlKey) return;
           if(gesturing || activePointers.size >= 2) return;
           e.stopPropagation();
@@ -1158,13 +1233,28 @@
 
         const tag = document.createElement('span');
         tag.className = 'tag';
-        tag.contentEditable = 'true';
+        tag.contentEditable = 'false';
         tag.dataset.key = cl.key;
         tag.textContent = state.labels[cl.key] || '未命名簇';
+        
+        tag.addEventListener('dblclick', e => {
+          e.stopPropagation();
+          e.preventDefault();
+          tag.contentEditable = 'true';
+          tag.focus();
+          const range = document.createRange();
+          range.selectNodeContents(tag);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        });
+
         tag.addEventListener('focus', ()=>{
           if(tag.textContent === '未命名簇') tag.textContent = '';
         });
+        
         tag.addEventListener('blur', ()=>{
+          tag.contentEditable = 'false';
           const v = tag.textContent.trim();
           if(v){
             state.labels[cl.key] = v;
@@ -1176,6 +1266,7 @@
           markDirty('簇名已更新，尚未保存');
           if(panel.classList.contains('open')) weave();
         });
+        
         tag.addEventListener('keydown', e=>{
           if(e.key === 'Enter'){
             e.preventDefault();
@@ -1186,7 +1277,18 @@
         const count = document.createElement('span');
         count.className = 'count';
         count.textContent = cl.members.length + ' 张';
+        
+        const bentoBtn = document.createElement('button');
+        bentoBtn.className = 'bento-btn';
+        bentoBtn.title = 'Bento 整理此卡片组';
+        bentoBtn.textContent = '🍱 Bento';
+        bentoBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          arrangeBento(cl.key);
+        });
+        
         h.appendChild(tag);
+        h.appendChild(bentoBtn);
         h.appendChild(count);
         canvas.appendChild(h);
       });
@@ -1879,6 +1981,15 @@
     return target.closest('textarea,input,[contenteditable="true"],button');
   }
 
+  function isScrollableTarget(target) {
+    if (isTypingTarget(target)) return true;
+    const txt = target.closest('.card.selected .txt');
+    if (txt) {
+      return txt.scrollHeight > txt.clientHeight;
+    }
+    return false;
+  }
+
   table.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     if (isTypingTarget(e.target)) return;
@@ -1888,6 +1999,9 @@
       return;
     }
     if (e.target === table || e.target === selectionBox) {
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
       e.preventDefault();
       clearSelection();
       startBoxSelect(e);
@@ -1921,7 +2035,7 @@
   }
 
   table.addEventListener('wheel', e => {
-    if (isTypingTarget(e.target)) return;
+    if (isScrollableTarget(e.target)) return;
     e.preventDefault();
     const tableRect = table.getBoundingClientRect();
     const fx = e.clientX - tableRect.left;
