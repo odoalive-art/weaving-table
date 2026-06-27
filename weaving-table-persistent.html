@@ -126,6 +126,11 @@
     padding:15px 15px 12px;box-shadow:var(--shadow);cursor:grab;
     transition:box-shadow .15s ease,transform .15s cubic-bezier(.22,1,.36,1),opacity .15s ease;
     will-change:transform;
+    display: flex;
+    flex-direction: column;
+  }
+  .card:not(.sized) {
+    max-height: 260px;
   }
   .card:hover{box-shadow:var(--shadow-lift)}
   .card.dragging{cursor:grabbing;box-shadow:var(--shadow-lift);transition:none;z-index:50;transform:rotate(-1.2deg)}
@@ -135,11 +140,34 @@
     border-color:color-mix(in srgb,var(--honey) 72%,var(--ink));
     box-shadow:0 0 0 2px color-mix(in srgb,var(--honey) 45%,transparent),var(--shadow-lift);
   }
-  .card .txt{font-size:15px;line-height:1.55;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+  .card .txt{
+    font-size:15px;line-height:1.55;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding-right: 4px;
+  }
+  .card.selected .txt, .card.editing .txt {
+    overflow-y: auto !important;
+  }
+  /* Slim Scrollbar */
+  .card .txt::-webkit-scrollbar {
+    width: 4px;
+  }
+  .card .txt::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .card .txt::-webkit-scrollbar-thumb {
+    background: var(--ink-faint);
+    border-radius: 2px;
+  }
+  .card .txt::-webkit-scrollbar-thumb:hover {
+    background: var(--ink-soft);
+  }
   .card .txt:empty::before{content:"写点什么...";color:var(--ink-faint)}
   .card .txt[contenteditable="true"]{outline:none;cursor:text}
   .card.sized{display:flex;flex-direction:column}
-  .card.sized .txt{flex:1 0 auto;min-height:0;overflow:visible;padding-right:2px}
+  .card.sized .txt{flex:1 0 auto;min-height:0;overflow:hidden;padding-right:2px}
   .card .meta{display:flex;align-items:center;gap:7px;margin-top:12px}
   .card .status{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);transition:background .2s}
   .card.clustered .status{background:var(--slate)}
