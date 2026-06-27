@@ -548,6 +548,7 @@
   let gesturing = false;
   let currentClusters = [];
   const activePointers = new Map();
+  let maxZIndex = 10;
 
   function readEmbeddedState(){
     const raw = document.getElementById('weaving-data').textContent.trim();
@@ -676,13 +677,14 @@
   function renderCards(){
     canvas.querySelectorAll('.card,.hull').forEach(el=>el.remove());
     applyView();
-    cards.forEach(c=>{
+    cards.forEach((c, idx)=>{
       clampCard(c);
       const el = document.createElement('div');
       el.className = 'card';
       el.dataset.id = c.id;
       el.style.left = c.x + 'px';
       el.style.top = c.y + 'px';
+      el.style.zIndex = 10 + idx;
       if(c.w) {
         el.style.width = c.w + 'px';
       } else {
@@ -696,6 +698,14 @@
       const txt = document.createElement('div');
       txt.className = 'txt';
       txt.textContent = c.text;
+      
+      // Save scroll position dynamically
+      txt.addEventListener('scroll', () => {
+        if (selectedIds.has(c.id) || el.classList.contains('editing')) {
+          c.scrollTop = txt.scrollTop;
+        }
+      });
+      
       el.appendChild(txt);
 
       const meta = document.createElement('div');
@@ -743,6 +753,7 @@
       attachDrag(c);
       attachResize(c, el);
     });
+    maxZIndex = 10 + cards.length;
     recompute();
   }
 
@@ -932,8 +943,19 @@
     cards.forEach(c=>{
       if(!c.el) return;
       const selected = selectedIds.has(c.id);
+      const wasSelected = c.el.classList.contains('selected');
       c.el.classList.toggle('selected', selected);
       c.el.classList.toggle('resizable', selected && selectedIds.size === 1);
+      
+      // Restore scroll position when card becomes selected
+      if (selected && !wasSelected) {
+        const txt = c.el.querySelector('.txt');
+        if (txt && c.scrollTop !== undefined) {
+          requestAnimationFrame(() => {
+            txt.scrollTop = c.scrollTop;
+          });
+        }
+      }
     });
   }
 
@@ -943,8 +965,9 @@
       const card = cards[idx];
       cards.splice(idx, 1);
       cards.push(card);
-      if (card.el && card.el.parentNode) {
-        card.el.parentNode.appendChild(card.el);
+      maxZIndex++;
+      if (card.el) {
+        card.el.style.zIndex = maxZIndex;
       }
     }
   }
@@ -1154,6 +1177,34 @@
     renderCards();
   }
 
+  function arrangeStack(clusterKey) {
+    const members = cards.filter(c => c.cluster === clusterKey);
+    if (members.length === 0) return;
+
+    const startX = Math.min(...members.map(m => m.x));
+    const startY = Math.min(...members.map(m => m.y));
+
+    members.sort((a, b) => a.y - b.y || a.id - b.id);
+
+    const colWidth = 220;
+    const cascadeOffset = 6;
+
+    members.forEach((c, idx) => {
+      if (c.el) {
+        c.el.style.width = colWidth + 'px';
+        c.el.style.height = '';
+        c.el.classList.remove('sized');
+      }
+      c.w = colWidth;
+      delete c.h;
+      c.x = startX + idx * cascadeOffset;
+      c.y = startY + idx * cascadeOffset;
+    });
+
+    markDirty('已对卡片组进行堆叠');
+    renderCards();
+  }
+
   function recompute(){
     const parent = {};
     cards.forEach(c=>parent[c.id] = c.id);
@@ -1224,7 +1275,8 @@
         h.style.height = (b-t) + 'px';
         h.style.background = hullTints[idx % hullTints.length];
         h.addEventListener('pointerdown', e=>{
-          if(e.target.classList.contains('tag') && tag.contentEditable === 'true') return;
+          if(e.target.closest('.bento-btn, .stack-btn')) return;
+          if(e.target.closest('.tag') && tag.contentEditable === 'true') return;
           if(spaceDown || e.ctrlKey) return;
           if(gesturing || activePointers.size >= 2) return;
           e.stopPropagation();
@@ -1297,7 +1349,6 @@
   function startClusterDrag(e, hull, key){
     const members = cards.filter(c=>c.cluster === key);
     if(members.length === 0) return;
-    hull.setPointerCapture(e.pointerId);
     hull.classList.add('dragging');
     selectCluster(key);
     members.forEach(m => bringToFront(m.id));
@@ -1312,14 +1363,21 @@
       ev.preventDefault();
       const dx = (ev.clientX - sx) / view.scale;
       const dy = (ev.clientY - sy) / view.scale;
-      if((Math.abs(dx) + Math.abs(dy)) * view.scale > 3) moved = true;
-      starts.forEach(item=>{
-        item.card.x = item.x + dx;
-        item.card.y = item.y + dy;
-      });
-      hull.style.left = (hx + dx) + 'px';
-      hull.style.top = (hy + dy) + 'px';
-      paintPositions(false);
+      if((Math.abs(dx) + Math.abs(dy)) * view.scale > 3) {
+        if (!moved) {
+          try{ hull.setPointerCapture(e.pointerId); }catch(_){}
+          moved = true;
+        }
+      }
+      if (moved) {
+        starts.forEach(item=>{
+          item.card.x = item.x + dx;
+          item.card.y = item.y + dy;
+        });
+        hull.style.left = (hx + dx) + 'px';
+        hull.style.top = (hy + dy) + 'px';
+        paintPositions(false);
+      }
     }
     function up(){
       try{ hull.releasePointerCapture(e.pointerId); }catch(_){}
