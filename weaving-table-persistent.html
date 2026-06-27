@@ -141,7 +141,7 @@
   }
 
   .card{
-    position:absolute;width:214px;min-width:150px;min-height:96px;z-index:10;
+    position:absolute;width:420px;min-width:150px;min-height:96px;z-index:10;
     background:var(--card);border:1px solid var(--card-edge);border-radius:14px;
     padding:15px 15px 12px;box-shadow:var(--shadow);cursor:grab;
     transition:box-shadow .15s ease,transform .15s cubic-bezier(.22,1,.36,1),opacity .15s ease;
@@ -536,7 +536,7 @@
 <script>
 (function(){
   const GROUP_GAP = 96;
-  const CARD_W = 214;
+  const CARD_W = 420;
   const CARD_H = 118;
   const SCALE_MIN = 0.4;
   const SCALE_MAX = 2.5;
@@ -2403,7 +2403,7 @@
       navigator.clipboard.readText().then(text => {
         const cleanText = text.trim();
         if (cleanText) {
-          const sx = window.innerWidth / 2 - 107;
+          const sx = window.innerWidth / 2 - 210;
           const sy = window.innerHeight / 2 - 48;
           createCardAt(sx, sy, cleanText);
         }
