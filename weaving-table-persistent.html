@@ -1137,15 +1137,11 @@
     const startX = Math.min(...members.map(m => m.x));
     const startY = Math.min(...members.map(m => m.y));
 
-    const count = members.length;
-    let cols = 3;
-    if (count === 2) cols = 2;
-    else if (count === 4) cols = 2;
-    else if (count >= 7) cols = 4;
-    else cols = 3;
-
     const colWidth = 320;
     const gap = 16;
+
+    // Sort by original Y coordinate to keep logical top-to-bottom order
+    members.sort((a, b) => a.y - b.y || a.x - b.x);
 
     // Temporarily apply width to elements to measure natural height
     members.forEach(c => {
@@ -1164,32 +1160,16 @@
       height: c.el ? c.el.offsetHeight : 120
     }));
 
-    // Sort by original Y coordinate to keep logical top-to-bottom order
-    naturalHeights.sort((a, b) => a.card.y - b.card.y || a.card.x - b.card.x);
-
-    const colHeights = new Array(cols).fill(0);
-
+    // Stack all cards vertically in a single column
+    let accumulatedY = startY;
     naturalHeights.forEach(item => {
       const c = item.card;
-      // Find min height column
-      let minCol = 0;
-      let minH = colHeights[0];
-      for (let j = 1; j < cols; j++) {
-        if (colHeights[j] < minH) {
-          minH = colHeights[j];
-          minCol = j;
-        }
-      }
-
-      // Position the card
-      c.x = startX + minCol * (colWidth + gap);
-      c.y = startY + colHeights[minCol];
-
-      // Update height
-      colHeights[minCol] += item.height + gap;
+      c.x = startX;
+      c.y = accumulatedY;
+      accumulatedY += item.height + gap;
     });
 
-    markDirty('已对卡片组进行 Bento 整理');
+    markDirty('已对卡片组进行整理');
     renderCards();
   }
 
@@ -1226,21 +1206,18 @@
 
     recompute();
 
-    const startX = 50;
-    let currentY = 50;
-    const gapBetweenClusters = 200;
+    let currentX = 50;
+    const startY = 50;
+    const gapBetweenGroups = 200;
     const colWidth = 320;
     const gapInside = 16;
 
+    // 1. Lay out each cluster as a vertical column, side-by-side horizontally
     currentClusters.forEach(cl => {
       const members = cl.members;
-      const count = members.length;
       
-      let cols = 3;
-      if (count === 2) cols = 2;
-      else if (count === 4) cols = 2;
-      else if (count >= 7) cols = 4;
-      else cols = 3;
+      // Sort by original Y coordinate to keep logical top-to-bottom order
+      members.sort((a, b) => a.y - b.y || a.x - b.x);
 
       members.forEach(c => {
         if (c.el) {
@@ -1252,41 +1229,29 @@
         delete c.h;
       });
 
+      // Force browser reflow to read natural heights
       const naturalHeights = members.map(c => ({
         card: c,
         height: c.el ? c.el.offsetHeight : 120
       }));
 
-      naturalHeights.sort((a, b) => a.card.y - b.card.y || a.card.x - b.card.x);
-
-      const colHeights = new Array(cols).fill(0);
-
+      // Stack cards vertically in a single column
+      let accumulatedY = startY;
       naturalHeights.forEach(item => {
         const c = item.card;
-        let minCol = 0;
-        let minH = colHeights[0];
-        for (let j = 1; j < cols; j++) {
-          if (colHeights[j] < minH) {
-            minH = colHeights[j];
-            minCol = j;
-          }
-        }
-
-        c.x = startX + minCol * (colWidth + gapInside);
-        c.y = currentY + colHeights[minCol];
-
-        colHeights[minCol] += item.height + gapInside;
+        c.x = currentX;
+        c.y = accumulatedY;
+        accumulatedY += item.height + gapInside;
       });
 
-      const maxColHeight = Math.max(...colHeights);
-
-      currentY += maxColHeight + gapBetweenClusters;
+      // Advance currentX
+      currentX += colWidth + gapBetweenGroups;
     });
 
+    // 2. Lay out loose cards horizontally side-by-side
     const loose = cards.filter(c => !c.cluster);
     if (loose.length > 0) {
-      const count = loose.length;
-      let cols = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(count))));
+      loose.sort((a, b) => a.x - b.x || a.y - b.y);
 
       loose.forEach(c => {
         if (c.el) {
@@ -1296,32 +1261,13 @@
         }
         c.w = colWidth;
         delete c.h;
-      });
 
-      const naturalHeights = loose.map(c => ({
-        card: c,
-        height: c.el ? c.el.offsetHeight : 120
-      }));
+        // Position the loose card as its own single-card column
+        c.x = currentX;
+        c.y = startY;
 
-      naturalHeights.sort((a, b) => a.card.y - b.card.y || a.card.x - b.card.x);
-
-      const colHeights = new Array(cols).fill(0);
-
-      naturalHeights.forEach(item => {
-        const c = item.card;
-        let minCol = 0;
-        let minH = colHeights[0];
-        for (let j = 1; j < cols; j++) {
-          if (colHeights[j] < minH) {
-            minH = colHeights[j];
-            minCol = j;
-          }
-        }
-
-        c.x = startX + minCol * (colWidth + gapInside);
-        c.y = currentY + colHeights[minCol];
-
-        colHeights[minCol] += item.height + gapInside;
+        // Advance currentX
+        currentX += colWidth + gapBetweenGroups;
       });
     }
 
@@ -1461,15 +1407,25 @@
         
         const bentoBtn = document.createElement('button');
         bentoBtn.className = 'bento-btn';
-        bentoBtn.title = 'Bento 整理此卡片组';
-        bentoBtn.textContent = '🍱 Bento';
+        bentoBtn.title = '展开卡片组为单列';
+        bentoBtn.textContent = '📋 展开';
         bentoBtn.addEventListener('click', e => {
           e.stopPropagation();
           arrangeBento(cl.key);
         });
+
+        const stackBtn = document.createElement('button');
+        stackBtn.className = 'stack-btn';
+        stackBtn.title = '将卡片组堆叠';
+        stackBtn.textContent = '🥞 堆叠';
+        stackBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          arrangeStack(cl.key);
+        });
         
         h.appendChild(tag);
         h.appendChild(bentoBtn);
+        h.appendChild(stackBtn);
         h.appendChild(count);
         canvas.appendChild(h);
       });
