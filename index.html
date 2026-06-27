@@ -132,6 +132,14 @@
   }
   .hull .bento-btn:active{transform:translateY(0)}
 
+  @keyframes saveFlash {
+    0% { box-shadow: 0 0 0 6px var(--honey), var(--shadow-lift); }
+    100% { box-shadow: var(--shadow); }
+  }
+  .card.just-saved {
+    animation: saveFlash 0.5s ease-out;
+  }
+
   .card{
     position:absolute;width:214px;min-width:150px;min-height:96px;z-index:10;
     background:var(--card);border:1px solid var(--card-edge);border-radius:14px;
@@ -402,6 +410,7 @@
       <button class="act ghost" id="addCard">+ 新卡片</button>
       <button class="act ghost" id="saveFile">保存 (Ctrl+S)</button>
       <button class="act ghost" id="downloadFile">导出 MD</button>
+      <button class="act ghost" id="tidyBoard" title="整理画布上所有卡片与分组">🍱 一键整理</button>
       <button class="act primary" id="weave">编织成文</button>
     </div>
 
@@ -874,6 +883,13 @@
       markDirty('卡片已更新，尚未保存');
       recompute();
       paintSelection();
+
+      if (commit && c.el) {
+        c.el.classList.add('just-saved');
+        setTimeout(() => {
+          if (c.el) c.el.classList.remove('just-saved');
+        }, 500);
+      }
     }
 
     function onBlur(){ finish(true); }
@@ -1203,6 +1219,120 @@
 
     markDirty('已对卡片组进行堆叠');
     renderCards();
+  }
+
+  function tidyBoard() {
+    if (cards.length === 0) return;
+
+    recompute();
+
+    let currentX = 50;
+    const startY = 50;
+    const gapBetweenClusters = 200;
+    const colWidth = 260;
+    const gapInside = 16;
+
+    currentClusters.forEach(cl => {
+      const members = cl.members;
+      const count = members.length;
+      
+      let cols = 3;
+      if (count === 2) cols = 2;
+      else if (count === 4) cols = 2;
+      else if (count >= 7) cols = 4;
+      else cols = 3;
+
+      members.forEach(c => {
+        if (c.el) {
+          c.el.style.width = colWidth + 'px';
+          c.el.style.height = '';
+          c.el.classList.remove('sized');
+        }
+        c.w = colWidth;
+        delete c.h;
+      });
+
+      const naturalHeights = members.map(c => ({
+        card: c,
+        height: c.el ? c.el.offsetHeight : 120
+      }));
+
+      naturalHeights.sort((a, b) => a.card.y - b.card.y || a.card.x - b.card.x);
+
+      const colHeights = new Array(cols).fill(0);
+
+      naturalHeights.forEach(item => {
+        const c = item.card;
+        let minCol = 0;
+        let minH = colHeights[0];
+        for (let j = 1; j < cols; j++) {
+          if (colHeights[j] < minH) {
+            minH = colHeights[j];
+            minCol = j;
+          }
+        }
+
+        c.x = currentX + minCol * (colWidth + gapInside);
+        c.y = startY + colHeights[minCol];
+
+        colHeights[minCol] += item.height + gapInside;
+      });
+
+      const maxColHeight = Math.max(...colHeights);
+      const clusterWidth = cols * colWidth + (cols - 1) * gapInside;
+
+      currentX += clusterWidth + gapBetweenClusters;
+    });
+
+    const loose = cards.filter(c => !c.cluster);
+    if (loose.length > 0) {
+      const count = loose.length;
+      let cols = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(count))));
+
+      loose.forEach(c => {
+        if (c.el) {
+          c.el.style.width = colWidth + 'px';
+          c.el.style.height = '';
+          c.el.classList.remove('sized');
+        }
+        c.w = colWidth;
+        delete c.h;
+      });
+
+      const naturalHeights = loose.map(c => ({
+        card: c,
+        height: c.el ? c.el.offsetHeight : 120
+      }));
+
+      naturalHeights.sort((a, b) => a.card.y - b.card.y || a.card.x - b.card.x);
+
+      const colHeights = new Array(cols).fill(0);
+
+      naturalHeights.forEach(item => {
+        const c = item.card;
+        let minCol = 0;
+        let minH = colHeights[0];
+        for (let j = 1; j < cols; j++) {
+          if (colHeights[j] < minH) {
+            minH = colHeights[j];
+            minCol = j;
+          }
+        }
+
+        c.x = currentX + minCol * (colWidth + gapInside);
+        c.y = startY + colHeights[minCol];
+
+        colHeights[minCol] += item.height + gapInside;
+      });
+    }
+
+    markDirty('已一键整理画布');
+    renderCards();
+    view.x = 50;
+    view.y = 50;
+    view.scale = 0.9;
+    state.view = view;
+    applyView();
   }
 
   function recompute(){
@@ -2212,6 +2342,7 @@
   document.getElementById('close').addEventListener('click', () => panel.classList.remove('open'));
   document.getElementById('saveFile').addEventListener('click', () => saveToFile(true));
   document.getElementById('downloadFile').addEventListener('click', () => downloadMarkdown());
+  document.getElementById('tidyBoard').addEventListener('click', tidyBoard);
   document.getElementById('openFile').addEventListener('click', handleOpenFile);
 
   // Prevent browser native scrolling when contenteditable overflows the viewport
