@@ -632,6 +632,7 @@
   function markDirty(message){
     dirty = true;
     saveStatus.textContent = message || '有未保存改动';
+    triggerAutoSave();
   }
 
   function showToast(message){
@@ -2042,7 +2043,6 @@
   let autoSaveTimer = null;
   function triggerAutoSave() {
     if (!fileHandle) return;
-    saveStatus.textContent = '有未保存改动...';
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(async () => {
       try {
@@ -2053,13 +2053,13 @@
             if (saveStatus.textContent === '自动保存成功' && fileHandle) {
               saveStatus.textContent = '已保存: ' + fileHandle.name;
             }
-          }, 3000);
+          }, 2000);
         }
       } catch (err) {
         console.error('自动保存失败:', err);
         saveStatus.textContent = '自动保存失败';
       }
-    }, 1000);
+    }, 1500);
   }
 
   function loadState(newState) {
