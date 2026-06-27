@@ -787,6 +787,7 @@
   function startCardEdit(c, fromNewCard){
     if(!c || !c.el) return;
     if(c.el.classList.contains('editing')) return;
+    bringToFront(c.id);
     const txt = c.el.querySelector('.txt');
     const original = c.text;
     c.el.classList.add('editing');
@@ -886,6 +887,18 @@
     });
   }
 
+  function bringToFront(id) {
+    const idx = cards.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      const card = cards[idx];
+      cards.splice(idx, 1);
+      cards.push(card);
+      if (card.el && card.el.parentNode) {
+        card.el.parentNode.appendChild(card.el);
+      }
+    }
+  }
+
   function attachDrag(c){
     const el = c.el;
     let sx, sy, moved, dragStarts;
@@ -894,8 +907,11 @@
       if(gesturing || activePointers.size >= 2) return;
       if(e.target.closest('button,.resize-handle,[contenteditable="true"]')) return;
       e.stopPropagation();
-      el.setPointerCapture(e.pointerId);
+      
       if(!selectedIds.has(c.id)) selectSingle(c.id);
+      selectedIds.forEach(id => bringToFront(id));
+      
+      el.setPointerCapture(e.pointerId);
       selectedIds.forEach(id=>{
         const card = cards.find(item=>item.id === id);
         if(card && card.el) card.el.classList.add('dragging');
@@ -1141,6 +1157,7 @@
     hull.setPointerCapture(e.pointerId);
     hull.classList.add('dragging');
     selectCluster(key);
+    members.forEach(m => bringToFront(m.id));
     const sx = e.clientX;
     const sy = e.clientY;
     const hx = parseFloat(hull.style.left) || 0;
@@ -1944,6 +1961,11 @@
       return;
     }
     if (isTypingTarget(e.target)) return;
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      selectMany(cards.map(c => c.id));
+      return;
+    }
     if (e.code === 'Space') {
       e.preventDefault();
       spaceDown = true;
