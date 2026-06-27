@@ -6,8 +6,8 @@
 <title>编织台</title>
 <style>
   :root{
-    --paper:#E8E4DB;
-    --paper-grid:#DEDACF;
+    --paper:hsl(0, 0%, 90%);
+    --paper-grid:hsl(0, 0%, 82%);
     --card:#FBFAF7;
     --card-edge:#E4DFD4;
     --ink:#2B2A26;
@@ -56,7 +56,7 @@
   .bar{
     position:absolute;top:0;left:0;right:0;min-height:56px;z-index:40;
     display:flex;align-items:center;gap:10px;padding:10px 16px;
-    background:linear-gradient(var(--paper) 10%,rgba(232,228,219,0));
+    background:linear-gradient(var(--paper) 10%,transparent);
     pointer-events:none;
   }
   .bar > *{pointer-events:auto}
@@ -1360,26 +1360,32 @@
       currentX += colWidth + gapBetweenGroups;
     });
 
-    // 2. Lay out loose cards horizontally side-by-side
+    // 2. Lay out loose cards in a compact 3-row grid (horizontal & vertical layout)
     const loose = cards.filter(c => !c.cluster);
     if (loose.length > 0) {
       loose.sort((a, b) => a.x - b.x || a.y - b.y);
 
-      loose.forEach(c => {
+      const rowsCount = 3;
+      const looseColWidth = 420;
+      const looseRowHeight = 180;
+      const horizontalGap = 24;
+      const verticalGap = 20;
+      const startLooseX = currentX;
+
+      loose.forEach((c, idx) => {
         if (c.el) {
-          c.el.style.width = colWidth + 'px';
+          c.el.style.width = looseColWidth + 'px';
           c.el.style.height = '';
           c.el.classList.remove('sized');
         }
-        c.w = colWidth;
+        c.w = looseColWidth;
         delete c.h;
 
-        // Position the loose card as its own single-card column
-        c.x = currentX;
-        c.y = startY;
+        const col = Math.floor(idx / rowsCount);
+        const row = idx % rowsCount;
 
-        // Advance currentX
-        currentX += colWidth + gapBetweenGroups;
+        c.x = startLooseX + col * (looseColWidth + horizontalGap);
+        c.y = startY + row * (looseRowHeight + verticalGap);
       });
     }
 
