@@ -1829,12 +1829,12 @@
       startPan(e);
       return;
     }
-    if (e.ctrlKey) {
+    if (e.target === table || e.target === selectionBox) {
       e.preventDefault();
+      clearSelection();
       startBoxSelect(e);
       return;
     }
-    if (e.target === table || e.target === selectionBox) clearSelection();
   });
 
   table.addEventListener('dblclick', e => {
